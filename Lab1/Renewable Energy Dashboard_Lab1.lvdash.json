@@ -211,6 +211,12 @@
                     "type": "quantitative"
                   }
                 },
+                "color": {
+                  "fieldName": "region",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
                 "label": {
                   "show": true
                 }
