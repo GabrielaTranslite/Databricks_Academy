@@ -1,0 +1,491 @@
+{
+  "datasets": [
+    {
+      "name": "b00e694a",
+      "displayName": "owid_energy_enriched",
+      "config": {
+        "version": "1.1",
+        "source": "dbr_dev.gabrielajaniszews786.owid_energy_enriched",
+        "dimensions": [
+          {
+            "name": "iso_code",
+            "expr": "source.iso_code",
+            "displayName": "Iso Code"
+          },
+          {
+            "name": "country",
+            "expr": "source.country",
+            "displayName": "Country"
+          },
+          {
+            "name": "year",
+            "expr": "source.year",
+            "displayName": "Year"
+          },
+          {
+            "name": "gas_share_energy",
+            "expr": "source.gas_share_energy",
+            "displayName": "Gas Share Energy"
+          },
+          {
+            "name": "coal_share_energy",
+            "expr": "source.coal_share_energy",
+            "displayName": "Coal Share Energy"
+          },
+          {
+            "name": "hydro_share_energy",
+            "expr": "source.hydro_share_energy",
+            "displayName": "Hydro Share Energy"
+          },
+          {
+            "name": "nuclear_share_energy",
+            "expr": "source.nuclear_share_energy",
+            "displayName": "Nuclear Share Energy"
+          },
+          {
+            "name": "biofuel_share_energy",
+            "expr": "source.biofuel_share_energy",
+            "displayName": "Biofuel Share Energy"
+          },
+          {
+            "name": "solar_share_energy",
+            "expr": "source.solar_share_energy",
+            "displayName": "Solar Share Energy"
+          },
+          {
+            "name": "wind_share_energy",
+            "expr": "source.wind_share_energy",
+            "displayName": "Wind Share Energy"
+          },
+          {
+            "name": "other_renewables_share_energy",
+            "expr": "source.other_renewables_share_energy",
+            "displayName": "Other Renewables Share Energy"
+          },
+          {
+            "name": "renewables_share_energy",
+            "expr": "source.renewables_share_energy",
+            "displayName": "Renewables Share Energy"
+          },
+          {
+            "name": "fossil_share_energy",
+            "expr": "source.fossil_share_energy",
+            "displayName": "Fossil Share Energy"
+          },
+          {
+            "name": "low_carbon_share_energy",
+            "expr": "source.low_carbon_share_energy",
+            "displayName": "Low Carbon Share Energy"
+          },
+          {
+            "name": "region",
+            "expr": "source.region",
+            "displayName": "Region"
+          },
+          {
+            "name": "subregion",
+            "expr": "source.subregion",
+            "displayName": "Subregion"
+          },
+          {
+            "name": "gdp",
+            "expr": "source.gdp",
+            "displayName": "Gdp"
+          },
+          {
+            "name": "gdp_billion_usd",
+            "expr": "source.gdp_billion_usd",
+            "displayName": "Gdp Billion Usd"
+          }
+        ],
+        "measures": [
+          {
+            "name": "count",
+            "expr": "COUNT(*)",
+            "comment": "Represents the total number of rows in the dataset. Use this measure to count all",
+            "displayName": "Count"
+          }
+        ]
+      }
+    }
+  ],
+  "pages": [
+    {
+      "name": "75a1939b",
+      "displayName": "Renewable Energy",
+      "layout": [
+        {
+          "widget": {
+            "name": "a",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "b00e694a",
+                  "fields": [
+                    {
+                      "name": "region",
+                      "expression": "`region`"
+                    },
+                    {
+                      "name": "avg(renewables_share_energy)",
+                      "expression": "AVG(`renewables_share_energy`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "showTitle": true,
+                "title": "Average Share of Renewable Energy by Regions in 2024"
+              },
+              "mark": {
+                "colors": [
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 3
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 2
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 3
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 4
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 5
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 6
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 7
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 8
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 9
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 10
+                  }
+                ]
+              },
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "region",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "y-reversed"
+                    }
+                  }
+                },
+                "y": {
+                  "fieldName": "avg(renewables_share_energy)",
+                  "axis": {
+                    "labelAngle": 0
+                  },
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "label": {
+                  "show": true
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 6,
+            "height": 13
+          }
+        },
+        {
+          "widget": {
+            "name": "g",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "b00e694a",
+                  "fields": [
+                    {
+                      "name": "region",
+                      "expression": "`region`"
+                    },
+                    {
+                      "name": "year",
+                      "expression": "`year`"
+                    },
+                    {
+                      "name": "avg(renewables_share_energy)",
+                      "expression": "AVG(`renewables_share_energy`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "showTitle": true,
+                "title": "Change in Renewables Share in Energy Mix by Regions"
+              },
+              "mark": {
+                "colors": [
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 3
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 2
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 3
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 4
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 5
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 6
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 7
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 8
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 9
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 10
+                  }
+                ]
+              },
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "year",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "fieldName": "avg(renewables_share_energy)",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "region",
+                  "scale": {
+                    "type": "categorical",
+                    "mappings": [
+                      {
+                        "value": "Polar",
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 10
+                        }
+                      },
+                      {
+                        "value": "Europe",
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 4
+                        }
+                      },
+                      {
+                        "value": "Oceania",
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 5
+                        }
+                      },
+                      {
+                        "value": "Africa",
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 1
+                        }
+                      },
+                      {
+                        "value": "Americas",
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 2
+                        }
+                      },
+                      {
+                        "value": "Asia",
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 3
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 0,
+            "width": 5,
+            "height": 13
+          }
+        },
+        {
+          "widget": {
+            "name": "renewables-share-energy-vs-gdp-per-country-log-scale",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "b00e694a",
+                  "fields": [
+                    {
+                      "name": "region",
+                      "expression": "`region`"
+                    },
+                    {
+                      "name": "country",
+                      "expression": "`country`"
+                    },
+                    {
+                      "name": "gdp_billion_usd",
+                      "expression": "`gdp_billion_usd`"
+                    },
+                    {
+                      "name": "renewables_share_energy",
+                      "expression": "`renewables_share_energy`"
+                    }
+                  ],
+                  "filters": [
+                    {
+                      "expression": "IN_RANGE(`year`, 2022, 2022)"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "showTitle": true,
+                "title": "Renewables Share Energy vs. GDP per Country (log scale) in 2022"
+              },
+              "mark": {
+                "size": -1.3
+              },
+              "widgetType": "scatter",
+              "encodings": {
+                "x": {
+                  "fieldName": "gdp_billion_usd",
+                  "axis": {
+                    "title": "GDP (Billion USD, log scale)"
+                  },
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 2
+                    }
+                  },
+                  "scale": {
+                    "type": "quantitative",
+                    "fn": {
+                      "type": "symlog"
+                    },
+                    "domain": {
+                      "max": 30000
+                    }
+                  }
+                },
+                "y": {
+                  "fieldName": "renewables_share_energy",
+                  "scale": {
+                    "type": "quantitative",
+                    "domain": {
+                      "max": 90
+                    }
+                  }
+                },
+                "color": {
+                  "fieldName": "region",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "extra": [
+                  {
+                    "fieldName": "country"
+                  }
+                ]
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 13,
+            "width": 6,
+            "height": 11
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1"
+    }
+  ],
+  "uiSettings": {
+    "theme": {
+      "widgetHeaderAlignment": "ALIGNMENT_UNSPECIFIED"
+    },
+    "applyModeEnabled": false
+  }
+}
