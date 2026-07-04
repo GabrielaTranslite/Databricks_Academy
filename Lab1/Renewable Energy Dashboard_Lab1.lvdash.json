@@ -132,6 +132,11 @@
                       "expression": "AVG(`renewables_share_energy`)"
                     }
                   ],
+                  "filters": [
+                    {
+                      "expression": "IN_RANGE(`year`, 2022, 2022)"
+                    }
+                  ],
                   "disaggregated": false
                 }
               }
@@ -140,7 +145,7 @@
               "version": 3,
               "frame": {
                 "showTitle": true,
-                "title": "Average Share of Renewable Energy by Regions in 2024"
+                "title": "Average Share of Renewable Energy by Regions in 2022"
               },
               "mark": {
                 "colors": [
@@ -236,12 +241,17 @@
                       "expression": "`region`"
                     },
                     {
-                      "name": "year",
-                      "expression": "`year`"
-                    },
-                    {
                       "name": "avg(renewables_share_energy)",
                       "expression": "AVG(`renewables_share_energy`)"
+                    },
+                    {
+                      "name": "year",
+                      "expression": "`year`"
+                    }
+                  ],
+                  "filters": [
+                    {
+                      "expression": "IN_RANGE(`year`, NULL, 2022)"
                     }
                   ],
                   "disaggregated": false
@@ -252,7 +262,7 @@
               "version": 3,
               "frame": {
                 "showTitle": true,
-                "title": "Change in Renewables Share in Energy Mix by Regions"
+                "title": "Change in Renewables Share in Energy Mix by Regions (2022)"
               },
               "mark": {
                 "colors": [
@@ -360,6 +370,15 @@
                         }
                       }
                     ]
+                  }
+                },
+                "label": {
+                  "show": true,
+                  "display": {
+                    "type": "x-max"
+                  },
+                  "text": {
+                    "fieldName": "avg(renewables_share_energy)"
                   }
                 }
               },
