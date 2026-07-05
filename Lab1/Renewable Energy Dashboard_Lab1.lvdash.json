@@ -107,6 +107,20 @@
           }
         ]
       }
+    },
+    {
+      "name": "9a21bdef",
+      "displayName": "region_coverage",
+      "queryLines": [
+        "SELECT\r\n",
+        "  region,\r\n",
+        "  COUNT(DISTINCT country) AS countries_total,\r\n",
+        "  COUNT(DISTINCT CASE WHEN renewables_share_energy IS NOT NULL THEN country END) AS countries_with_energy_mix\r\n",
+        "FROM dbr_dev.gabrielajaniszews786.owid_energy_enriched\r\n",
+        "WHERE year = 2022\r\n",
+        "GROUP BY region\r\n",
+        "ORDER BY countries_with_energy_mix DESC"
+      ]
     }
   ],
   "pages": [
@@ -230,7 +244,7 @@
             "x": 0,
             "y": 0,
             "width": 3,
-            "height": 13
+            "height": 14
           }
         },
         {
@@ -397,7 +411,7 @@
             "x": 3,
             "y": 0,
             "width": 3,
-            "height": 13
+            "height": 8
           }
         },
         {
@@ -497,9 +511,72 @@
           },
           "position": {
             "x": 0,
-            "y": 13,
+            "y": 14,
             "width": 6,
             "height": 11
+          }
+        },
+        {
+          "widget": {
+            "name": "sample",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "9a21bdef",
+                  "fields": [
+                    {
+                      "name": "region",
+                      "expression": "`region`"
+                    },
+                    {
+                      "name": "countries_total",
+                      "expression": "`countries_total`"
+                    },
+                    {
+                      "name": "countries_with_energy_mix",
+                      "expression": "`countries_with_energy_mix`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "showDescription": true,
+                "title": "Sample Size",
+                "description": "Energy mix breakdown data (renewables, fossil, coal, etc.) is not available for every country in each region \n– see sample sizes below. GDP data is only available through 2022."
+              },
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "region",
+                    "displayName": "Region"
+                  },
+                  {
+                    "fieldName": "countries_total",
+                    "displayName": "Countries Total"
+                  },
+                  {
+                    "fieldName": "countries_with_energy_mix",
+                    "displayName": "Countries with Energy Mix Data"
+                  }
+                ]
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 8,
+            "width": 3,
+            "height": 6
           }
         }
       ],
