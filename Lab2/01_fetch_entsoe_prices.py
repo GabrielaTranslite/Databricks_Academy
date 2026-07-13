@@ -110,8 +110,3 @@ for i in range(1, N_DAYS + 1):
     time.sleep(0.3)                            
 
 print(f"\nProcess completed. Saved data: {written}, days with no data: {empty}, errors: {failed}")
-
-# COMMAND ----------
-
-# Podgląd — co wylądowało w landing
-display(dbutils.fs.ls(LANDING))
