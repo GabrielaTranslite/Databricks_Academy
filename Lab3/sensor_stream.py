@@ -43,9 +43,6 @@ def make_event(site: dict, timestamp_utc: str, consumption_kwh: float,
         pue=round(pue, 3),
     )
 
-
-# --- Minimal site registry (mapping data centers -> bidding zones) ---------
-# You'll expand this; it only exists so bidding_zone lines up with your prices.
 SITES = [
     {"site_id": "DC-PL-01",    "site_name": "Warsaw DC",    "country": "PL", "bidding_zone": "PL"},
     {"site_id": "DC-DE-01",    "site_name": "Frankfurt DC",  "country": "DE", "bidding_zone": "DE_LU"},
@@ -56,3 +53,6 @@ SITES = [
     {"site_id": "DC-LT-01",    "site_name": "Vilnus DC",     "country": "LT", "bidding_zone": "LT"},
     {"site_id": "DC-PT-01",    "site_name": "Lisbon DC",     "country": "PT", "bidding_zone": "PT"},
 ]
+
+
+
