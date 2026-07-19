@@ -1,7 +1,6 @@
 import asyncio
 import datetime
 import random
-import site
 from azure.eventhub import EventData
 from azure.eventhub.aio import EventHubProducerClient
 import json
@@ -22,24 +21,40 @@ async def run():
     producer = EventHubProducerClient.from_connection_string(
         conn_str=EVENT_HUB_CONNECTION_STRING, eventhub_name=EVENT_HUB_NAME
     )
-    site = SITES[0]
-    ts   = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    counter = 20
+    for site in SITES:
+        
+        counter = 20
     
-    async with producer:
-        # Create a batch.
-        while counter > 0:
-            event_data_batch = await producer.create_batch()
-            event  = make_event(site, timestamp_utc=ts, consumption_kwh=12.5, avg_power_kw=750.0, pue=1.35)
-            payload = event.to_json_bytes()
-            # Add events to the batch.
-            event_data_batch.add(EventData(payload))
+        async with producer:
+            # Create a batch.
+            while counter > 0:
+                event_data_batch = await producer.create_batch()
+                # Taking the current time
+                current_ts   = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+                
+                # Random power values
+                random_consumption = random.uniform(10.0, 15.0)
+                random_power = random.uniform(700.0, 800.0)
+                random_pue = random.univorm(1.2, 1.4), 2
 
-            # Send the batch of events to the event hub.
-            await producer.send_batch(event_data_batch)
-            await asyncio.sleep(3)
-            print(payload)
-            counter = counter - 1
+               
+                event  = make_event(
+                    site, 
+                    timestamp_utc=current_ts,
+                    consumption_kwh=random_consumption,
+                    avg_power_kw=random_power,
+                    pue=random_pue
+                )
+
+                payload = event.to_json_bytes()
+                # Add events to the batch.
+                event_data_batch.add(EventData(payload))
+
+                # Send the batch of events to the event hub.
+                await producer.send_batch(event_data_batch)
+                await asyncio.sleep(3)
+                print(payload)
+                counter = counter - 1
 
 
 asyncio.run(run())
