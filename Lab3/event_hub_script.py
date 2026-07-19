@@ -34,7 +34,7 @@ async def run():
                 # Random power values
                 random_consumption = random.uniform(10.0, 15.0)
                 random_power = random.uniform(700.0, 800.0)
-                random_pue = random.uniform(1.2, 1.4), 2
+                random_pue = random.uniform(1.2, 1.4)
 
                
                 event  = make_event(
