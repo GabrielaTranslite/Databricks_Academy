@@ -1,3 +1,5 @@
+!pip install azure.eventhub
+
 import asyncio
 import datetime
 import random
@@ -8,18 +10,15 @@ import os
 from pathlib import Path
 from sensor_stream import make_event, SITES
 
-from dotenv import load_dotenv
 
-load_dotenv(Path(__file__).with_name(".env"))
-
-EVENT_HUB_CONNECTION_STRING = os.environ.get("EVENT_HUB_CONNECTION_STRING")
-EVENT_HUB_NAME = os.environ.get("EVENT_HUB_NAME")
+EH_NAME = "gabrielajaniszews786_eventhub"
+EH_CONN_STR = dbutils.secrets.get("default2", "eventhub-con-str-gabriela")
 
 async def run():
     '''Creating a producer client to send messages to the event hub.'''
     
     producer = EventHubProducerClient.from_connection_string(
-        conn_str=EVENT_HUB_CONNECTION_STRING, eventhub_name=EVENT_HUB_NAME
+        conn_str=EH_CONN_STR, eventhub_name=EH_NAME
     )
     for site in SITES:
         
@@ -35,7 +34,7 @@ async def run():
                 # Random power values
                 random_consumption = random.uniform(10.0, 15.0)
                 random_power = random.uniform(700.0, 800.0)
-                random_pue = random.univorm(1.2, 1.4), 2
+                random_pue = random.uniform(1.2, 1.4)
 
                
                 event  = make_event(
@@ -56,5 +55,10 @@ async def run():
                 print(payload)
                 counter = counter - 1
 
-
-asyncio.run(run())
+try:
+    asyncio.run(run())
+except RuntimeError:
+    # Already inside a running loop (Databricks / Jupyter) -> patch and retry.
+    import nest_asyncio
+    nest_asyncio.apply()
+    asyncio.run(run())
