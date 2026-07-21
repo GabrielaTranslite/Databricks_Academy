@@ -76,7 +76,7 @@ incremental and idempotent — nothing is loaded twice.
   `offset`, `enqueued_ts`) plus `ingestion_ts`. Checkpoint guarantees no record is read twice.
 - **No UDFs.** All transformations use built-in Spark functions — no UDF was justified.
 - **Scheduled job — cost awareness.** Job `lab3_stream_fetching_job_gabriela` runs the consumer
-  on a schedule (every 15 min) with `trigger(availableNow=True)`: it drains the backlog and stops
+  on a schedule (every 15 min - paused now) with `trigger(availableNow=True)`: it drains the backlog and stops
   so the job cluster auto-terminates between runs, instead of a 24/7 stream. The producer is a
   separate, manually-run job that simulates the external live source, so the two can run on
   independent cadences. A data-quality gate at the end of the run (null keys, duplicate
