@@ -94,7 +94,7 @@
 # MAGIC | Small files and skew | Still needs partitions, so skew and small-file risk | Managed automatically |
 # MAGIC | Databricks 2025 | Still supported, no longer the default advice | Recommended for all new tables |
 # MAGIC
-# MAGIC One-liner. Z-Order optimises a layout you committed to. Liquid Clustering removes the commitment.
+# MAGIC Z-Order optimises a layout you committed to. Liquid Clustering removes the commitment.
 
 # COMMAND ----------
 
@@ -112,8 +112,6 @@
 # MAGIC %md
 # MAGIC ## 5. The demo, proving data skipping
 # MAGIC We build one FreshBite `orders` table three ways (baseline, Z-Order, Liquid Clustering) and run the same selective query on each.
-# MAGIC
-# MAGIC How to read the result. Do not trust wall-clock time on small serverless data, it is noisy (caching and scheduling overhead). The honest metric is **bytes pruned** and **files read** in the Query Profile, which is cache-independent. After each query, open the drop-down under the result and choose View Query Profile, then read files read and bytes pruned on the scan node.
 # MAGIC
 # MAGIC Expect the baseline to scan almost all files. Z-Order and Liquid read just a handful. That gap is the whole point.
 
