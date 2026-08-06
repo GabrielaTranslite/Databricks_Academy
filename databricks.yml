@@ -1,0 +1,189 @@
+# databricks.yml
+# Databricks Asset Bundle for the ENTSO-E / data-center Silver pipeline.
+#
+# One bundle, two targets = the two "versions" of the pipeline:
+#   dev  -> Databricks Free Edition. Bronze is produced by the synthetic generator
+#           (no internet egress, no Event Hub needed).
+#   prod -> reviewer's Databricks. Bronze is produced from the real ENTSO-E API
+#           (Auto Loader) and the Azure Event Hub stream.
+#
+# The three Silver notebooks (03/04/05) are identical in both targets; only the
+# bronze-producing tasks and the injected parameters differ.
+#
+# Deploy dev:   databricks bundle deploy -t dev
+# Run dev once: databricks bundle run silver_pipeline -t dev
+# Deploy prod:  databricks bundle deploy -t prod   (done by the reviewer)
+
+bundle:
+  name: entsoe_silver
+
+# Defaults. Each target overrides the values it needs.
+variables:
+  catalog:
+    description: Unity Catalog to read/write.
+    default: workspace
+  bronze_schema:
+    description: Bronze schema.
+    default: bronze
+  silver_schema:
+    description: Silver schema.
+    default: silver
+
+targets:
+
+  # ===========================================================================
+  # DEV  —  Free Edition, generator-seeded bronze
+  # ===========================================================================
+  dev:
+    mode: development          # prefixes resources with your user, creates schedules PAUSED
+    default: true
+    workspace:
+      # TODO: replace with your Free Edition workspace URL
+      host: https://<YOUR-FREE-EDITION-HOST>.cloud.databricks.com
+    variables:
+      catalog: workspace
+      bronze_schema: gabrielajaniszews786_bronze
+      silver_schema: gabrielajaniszews786_silver
+    resources:
+      jobs:
+        silver_pipeline:
+          name: entsoe-silver-pipeline-dev
+          # In development mode this schedule is created PAUSED; you trigger the job manually.
+          schedule:
+            quartz_cron_expression: "0 0 6 * * ?"   # daily 06:00
+            timezone_id: Europe/Warsaw
+          tasks:
+
+            # --- Bronze: synthetic generator (replaces API + Event Hub on Free Edition) ---
+            - task_key: generate_bronze
+              notebook_task:
+                notebook_path: ./Lab4/generate_bronze_sample.py
+                base_parameters:
+                  catalog: ${var.catalog}
+                  bronze_schema: ${var.bronze_schema}
+                  n_days: "14"
+                  seed: "42"
+
+            # --- Silver ---
+            - task_key: silver_prices
+              depends_on:
+                - task_key: generate_bronze
+              notebook_task:
+                notebook_path: ./Lab4/03_silver_entsoe.ipynb
+                base_parameters:
+                  catalog: ${var.catalog}
+                  bronze_schema: ${var.bronze_schema}
+                  silver_schema: ${var.silver_schema}
+                  run_checks: "false"
+
+            - task_key: silver_sensor
+              depends_on:
+                - task_key: generate_bronze
+              notebook_task:
+                notebook_path: ./Lab4/04_silver_sensor_data.ipynb
+                base_parameters:
+                  catalog: ${var.catalog}
+                  bronze_schema: ${var.bronze_schema}
+                  silver_schema: ${var.silver_schema}
+                  run_checks: "false"
+
+            - task_key: silver_dim
+              depends_on:
+                - task_key: generate_bronze
+              notebook_task:
+                notebook_path: ./Lab4/05_silver_dim_datacenter.ipynb
+                base_parameters:
+                  catalog: ${var.catalog}
+                  bronze_schema: ${var.bronze_schema}
+                  silver_schema: ${var.silver_schema}
+                  run_checks: "false"
+
+  # ===========================================================================
+  # PROD  —  reviewer's Databricks, real ENTSO-E API + Azure Event Hub
+  # ===========================================================================
+  prod:
+    mode: production           # clean resource names, schedule ACTIVE
+    workspace:
+      # TODO: reviewer replaces with their workspace URL
+      host: https://<REVIEWER-HOST>.cloud.databricks.com
+    variables:
+      catalog: dbr_dev
+      bronze_schema: bronze
+      silver_schema: silver
+    resources:
+      jobs:
+        silver_pipeline:
+          name: entsoe-silver-pipeline-prod
+          schedule:
+            quartz_cron_expression: "0 0 6 * * ?"   # daily 06:00
+            timezone_id: Europe/Warsaw
+          tasks:
+
+            # --- Bronze: prices from the ENTSO-E API, landed then Auto Loaded ---
+            - task_key: fetch_prices
+              notebook_task:
+                notebook_path: ./Lab3/01_fetch_entsoe_prices_lab3.ipynb
+                base_parameters:
+                  catalog: ${var.catalog}
+                  bronze_schema: ${var.bronze_schema}
+                  n_days: "30"
+                  bidding_zone: "PL,DE_LU,FR,ES,CZ,SK,LT,PT"
+                  secret_scope: default2
+                  secret_key: gabriela-entsoe-token
+
+            - task_key: autoloader_prices
+              depends_on:
+                - task_key: fetch_prices
+              notebook_task:
+                notebook_path: ./Lab3/02_autoloader_bronze_lab3.ipynb
+                base_parameters:
+                  catalog: ${var.catalog}
+                  bronze_schema: ${var.bronze_schema}
+
+            # --- Bronze: sensor stream from Azure Event Hub ---
+            # NOTE: 03_fetch_sensor_streaming must be parameterized (widgets:
+            #       eh_namespace, eh_name, secret_scope, secret_key) for these to apply.
+            - task_key: ingest_sensor
+              notebook_task:
+                notebook_path: ./Lab3/03_fetch_sensor_streaming_lab3.ipynb
+                base_parameters:
+                  catalog: ${var.catalog}
+                  bronze_schema: ${var.bronze_schema}
+                  eh_namespace: evhpl24databricks
+                  eh_name: gabrielajaniszews786_eventhub
+                  secret_scope: default2
+                  secret_key: eventhub-con-str-gabriela
+
+            # --- Silver ---
+            - task_key: silver_prices
+              depends_on:
+                - task_key: autoloader_prices
+              notebook_task:
+                notebook_path: ./Lab4/03_silver_entsoe.ipynb
+                base_parameters:
+                  catalog: ${var.catalog}
+                  bronze_schema: ${var.bronze_schema}
+                  silver_schema: ${var.silver_schema}
+                  run_checks: "false"
+
+            - task_key: silver_sensor
+              depends_on:
+                - task_key: ingest_sensor
+              notebook_task:
+                notebook_path: ./Lab4/04_silver_sensor_data.ipynb
+                base_parameters:
+                  catalog: ${var.catalog}
+                  bronze_schema: ${var.bronze_schema}
+                  silver_schema: ${var.silver_schema}
+                  run_checks: "false"
+
+            - task_key: silver_dim
+              depends_on:
+                - task_key: ingest_sensor
+              notebook_task:
+                notebook_path: ./Lab4/05_silver_dim_datacenter.ipynb
+                base_parameters:
+                  catalog: ${var.catalog}
+                  bronze_schema: ${var.bronze_schema}
+                  silver_schema: ${var.silver_schema}
+                  run_checks: "false"
