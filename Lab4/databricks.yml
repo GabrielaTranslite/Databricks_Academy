@@ -12,7 +12,7 @@
 #
 # Deploy dev:   databricks bundle deploy -t dev
 # Run dev once: databricks bundle run silver_pipeline -t dev
-# Deploy prod:  databricks bundle deploy -t prod   (done by the reviewer)
+# Deploy prod:  databricks bundle deploy -t prod
 
 bundle:
   name: entsoe_silver
@@ -35,23 +35,22 @@ targets:
   # DEV  —  Free Edition, generator-seeded bronze
   # ===========================================================================
   dev:
-    mode: development          # prefixes resources with your user, creates schedules PAUSED
+    mode: development
     default: true
     workspace:
-      # TODO: replace with your Free Edition workspace URL
-      host: https://<YOUR-FREE-EDITION-HOST>.cloud.databricks.com
+      host: https://dbc-8697dee0-e1e6.cloud.databricks.com
     variables:
       catalog: workspace
-      bronze_schema: gabrielajaniszews786_bronze
-      silver_schema: gabrielajaniszews786_silver
+      bronze_schema: bronze
+      silver_schema: silver
     resources:
       jobs:
         silver_pipeline:
           name: entsoe-silver-pipeline-dev
-          # In development mode this schedule is created PAUSED; you trigger the job manually.
           schedule:
             quartz_cron_expression: "0 0 6 * * ?"   # daily 06:00
             timezone_id: Europe/Warsaw
+            pause_status: PAUSED
           tasks:
 
             # --- Bronze: synthetic generator (replaces API + Event Hub on Free Edition) ---
@@ -99,23 +98,23 @@ targets:
                   run_checks: "false"
 
   # ===========================================================================
-  # PROD  —  reviewer's Databricks, real ENTSO-E API + Azure Event Hub
+  # PROD  —  Azure Databricks, real ENTSO-E API + Azure Event Hub
   # ===========================================================================
   prod:
-    mode: production           # clean resource names, schedule ACTIVE
+    mode: production           # schedule ACTIVE
     workspace:
-      # TODO: reviewer replaces with their workspace URL
-      host: https://<REVIEWER-HOST>.cloud.databricks.com
+      host: https://adb-7405604503619901.1.azuredatabricks.net
     variables:
       catalog: dbr_dev
-      bronze_schema: bronze
-      silver_schema: silver
+      bronze_schema: gabrielajaniszews786_bronze
+      silver_schema: gabrielajaniszews786_silver
     resources:
       jobs:
         silver_pipeline:
           name: entsoe-silver-pipeline-prod
           schedule:
             quartz_cron_expression: "0 0 6 * * ?"   # daily 06:00
+            pause_status: PAUSED
             timezone_id: Europe/Warsaw
           tasks:
 
