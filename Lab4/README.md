@@ -7,11 +7,11 @@ enforcement/evolution, data-quality rules and table maintenance.
 
 The pipeline is delivered as a **Databricks Asset Bundle** (`databricks.yml`) with two
 targets: `dev` (developed on Databricks Free Edition) and `prod` (deployed on the
-reviewer's Databricks). Same Silver code, different bronze sources per environment.
+Azure Databricks). Same Silver code, different bronze sources per environment.
 
 ## Environments
 
-| | dev (Free Edition) | prod (reviewer's Databricks) |
+| | dev (Free Edition) | prod (Azure Databricks) |
 |---|---|---|
 | Catalog | `workspace` | `dbr_dev` |
 | Bronze schema | `gabrielajaniszews786_bronze` | `bronze` |
@@ -61,8 +61,7 @@ demo). Structural steps (CREATE, MERGE, constraints, maintenance) always run.
 
 ## Secrets (prod only)
 
-Never stored in Git. The reviewer creates a secret scope and the two keys below, then the
-`prod` target reads them by name:
+Never stored in Git. 
 
 | Scope | Key | Used by |
 |---|---|---|
@@ -99,7 +98,7 @@ databricks bundle deploy   -t dev
 databricks bundle run silver_pipeline -t dev
 ```
 
-The reviewer deploys prod with `-t prod` after filling in the workspace host and secrets.
+In prod deploy with `-t prod` after filling in the workspace host and secrets.
 
 ## Lab 4 requirement coverage
 
