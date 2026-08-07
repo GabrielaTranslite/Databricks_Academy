@@ -56,7 +56,7 @@ targets:
             # --- Bronze: synthetic generator (replaces API + Event Hub on Free Edition) ---
             - task_key: generate_bronze
               notebook_task:
-                notebook_path: ./Lab4/generate_bronze_sample.py
+                notebook_path: ./Lab4/generate_bronze_sample.ipynb
                 base_parameters:
                   catalog: ${var.catalog}
                   bronze_schema: ${var.bronze_schema}
