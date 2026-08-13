@@ -3,7 +3,6 @@ from pyspark.sql import functions as F
 
 CATALOG       = spark.conf.get("catalog")
 BRONZE_SCHEMA = spark.conf.get("bronze_schema")
-SILVER_SCHEMA = spark.conf.get("silver_schema")
 LANDING       = f"/Volumes/{CATALOG}/{BRONZE_SCHEMA}/entsoe_landing"
 
 # Single source of truth for table names
@@ -11,8 +10,8 @@ TABLES = {
     "prices_bronze": "prices_bronze",
     "prices_silver": "prices_silver",
     "sensor_bronze": "sensor_bronze",
-    "sensor_silver_clean": "silver_silver_clean",
-    "sensor_silver": "Sensor_silver",
+    "sensor_silver_clean": "sensor_silver_clean",
+    "sensor_silver": "sensor_silver",
     "sensor_daily": "sensor_daily"
     }
 
