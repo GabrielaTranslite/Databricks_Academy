@@ -81,5 +81,3 @@ databricks bundle deploy  -t prod                 # deploy to prod — do NOT ru
 ## Notes
 
 - Analytics / dashboards stay **outside** the pipeline — the pipeline file defines tables only.
-- Manage this pipeline **only through the bundle**; do not also create/run a second pipeline by hand on
-  the same target, or the two will conflict over table ownership.
