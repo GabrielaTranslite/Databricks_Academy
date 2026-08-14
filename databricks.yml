@@ -1,17 +1,20 @@
-# databricks.yml
-# Databricks Asset Bundle for the ENTSO-E / data-center Silver pipeline.
+databricks.yml
+# Databricks Asset Bundle for the ENTSO-E / data-center project.
 #
-# One bundle, two targets = the two "versions" of the pipeline:
+# One bundle, two targets:
 #   dev  -> Databricks Free Edition. Bronze is produced by the synthetic generator
 #           (no internet egress, no Event Hub needed).
-#   prod -> reviewer's Databricks. Bronze is produced from the real ENTSO-E API
+#   prod -> Azure Databricks. Bronze is produced from the real ENTSO-E API
 #           (Auto Loader) and the Azure Event Hub stream.
 #
-# The three Silver notebooks (03/04/05) are identical in both targets; only the
-# bronze-producing tasks and the injected parameters differ.
+# This bundle now deploys TWO things:
+#   1. silver_pipeline  (classic Job, Lab 4)  — imperative notebooks + MERGE, per target.
+#   2. entsoe_silver_ldp (declarative pipeline, Lab 5) — Lakeflow, one top-level definition.
+# Keeping both is intentional: they are the "classic vs declarative" comparison.
 #
 # Deploy dev:   databricks bundle deploy -t dev
-# Run dev once: databricks bundle run silver_pipeline -t dev
+# Run job:      databricks bundle run silver_pipeline    -t dev
+# Run pipeline: databricks bundle run entsoe_silver_ldp  -t dev
 # Deploy prod:  databricks bundle deploy -t prod
 
 bundle:
@@ -28,6 +31,30 @@ variables:
   silver_schema:
     description: Silver schema.
     default: silver
+
+# ===========================================================================
+# Lab 5 — declarative pipeline (Lakeflow Spark Declarative Pipelines).
+# Defined ONCE at top level: the definition is identical for dev and prod,
+# only the ${var.*} values differ (resolved per target).
+# ldp_pipeline.py is a plain .py source file >> `file:` (not `notebook:`).
+# ===========================================================================
+resources:
+  pipelines:
+    entsoe_silver_ldp:
+      name: entsoe-silver-ldp-${bundle.target}   # entsoe-silver-ldp-dev / -prod
+      catalog: ${var.catalog}                    # target catalog (workspace on dev, dbr_dev on prod)
+      schema: ${var.silver_schema}               # where the pipeline writes its tables
+      serverless: true                           
+
+      libraries:
+        - file:
+            path: ./Lab5/ldp_pipeline.py
+
+      # Becomes spark.conf entries, read by spark.conf.get(...) in the pipeline file.
+      configuration:
+        catalog: ${var.catalog}
+        bronze_schema: ${var.bronze_schema}
+        silver_schema: ${var.silver_schema}
 
 targets:
 
@@ -101,7 +128,7 @@ targets:
   # PROD  —  Azure Databricks, real ENTSO-E API + Azure Event Hub
   # ===========================================================================
   prod:
-    mode: production           # schedule ACTIVE
+    mode: production
     workspace:
       host: https://adb-7405604503619901.1.azuredatabricks.net
     variables:
