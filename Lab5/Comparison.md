@@ -10,7 +10,7 @@
   (`@dp.materialized_view` / `@dp.table`), quality is declared with `expect_all_*`, and deduplication is
   a `create_auto_cdc_flow`. The engine builds the graph, runs it, and tracks lineage.
 
-  ## Side by side
+## Side by side
 
 | Concern | Classic Spark job (Lab 4) | Declarative pipeline (Lab 5) |
 |---|---|---|
