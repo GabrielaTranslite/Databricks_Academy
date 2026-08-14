@@ -1,9 +1,14 @@
 from pyspark import pipelines as dp
 from pyspark.sql import functions as F
 
+# Lab 5 — Lakeflow declarative pipeline: bronze -> silver -> gold.
+# Sources: prices_bronze = JSON files (file source), sensor_bronze = streaming (Delta stream).
+# Silver: expectations replace Lab 4 .filter()/CHECK; dedup via create_auto_cdc_flow replaces MERGE.
+# Params come from the pipeline configuration (spark.conf.get), not widgets.
+
 CATALOG       = spark.conf.get("catalog")
 BRONZE_SCHEMA = spark.conf.get("bronze_schema")
-LANDING       = f"/Volumes/{CATALOG}/{BRONZE_SCHEMA}/entsoe_landing"
+LANDING       = f"/Volumes/{CATALOG}/{BRONZE_SCHEMA}/entsoe_landing/prices"
 
 # Single source of truth for table names
 TABLES = {
