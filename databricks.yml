@@ -30,6 +30,12 @@ variables:
   silver_schema:
     description: Silver schema.
     default: silver
+sync:
+  exclude:
+    - "*.dbc"
+    - "*.pdf"
+    - ".venv"
+    - "**/__pycache__"
 
 # ===========================================================================
 # Lab 5 — declarative pipeline (Lakeflow Spark Declarative Pipelines).
