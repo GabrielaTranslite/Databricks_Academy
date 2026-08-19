@@ -23,11 +23,12 @@ async def run():
             ts   = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
             for site in SITES:
+                avg_power = random.uniform(700.0, 800.0)
                 event = make_event(
                     site, 
                     timestamp_utc=ts,
-                    consumption_kwh=random.uniform(10.0, 15.0),
-                    avg_power_kw=random.uniform(700.0, 800.0),
+                    consumption_kwh = round(avg_power * 1.0, 2),
+                    avg_power_kw=avg_power,
                     pue = random.uniform(1.2, 1.4),
                 )
                 batch.add(EventData(event.to_json_bytes()))
