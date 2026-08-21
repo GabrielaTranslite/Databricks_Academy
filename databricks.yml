@@ -30,6 +30,9 @@ variables:
   silver_schema:
     description: Silver schema.
     default: silver
+  gold_schema:
+    description: Gold schema.
+    default: gold
 sync:
   exclude:
     - "*.dbc"
@@ -76,6 +79,7 @@ targets:
       catalog: workspace
       bronze_schema: bronze
       silver_schema: silver
+      gold_schema: gold
     resources:
       jobs:
         silver_pipeline:
@@ -142,6 +146,7 @@ targets:
       catalog: dbr_dev
       bronze_schema: gabrielajaniszews786_bronze
       silver_schema: gabrielajaniszews786_silver
+      gold_schema: gabrielajaniszews786_gold
     resources:
       jobs:
         silver_pipeline:
