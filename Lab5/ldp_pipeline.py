@@ -20,6 +20,10 @@ TABLES = {
     "sensor_silver_clean": "sensor_silver_clean",
     "sensor_silver": "sensor_silver",
     "sensor_daily": "sensor_daily"
+    "silver_datacenter": "silver_datacenter"
+    "consumption_hourly": "consumption_hourly"
+    "dim_datacenter": "dim_datacenter"
+    "dim_date": "dim_date"
     }
 
 # ==============================================
@@ -79,10 +83,7 @@ dp.create_auto_cdc_flow(                                    # 2) the rule
 # Datacenter table based on sensor data
 @dp.materialized_view(name = TABLES["silver_datacenter"])
 def silver_datacenter():
-    if spark.table(f"{CATALOG}.{SILVER_SCHEMA}.silver_datacenter").count() == 0:
-        spark.sql(f"""
-        INSERT INTO {CATALOG}.{SILVER_SCHEMA}.dim_datacenter
-            (site_id, site_name, country, bidding_zone, valid_from, valid_to, is_current)
+    return spark.sql(f"""
         SELECT DISTINCT
             site_id,
             site_name,
@@ -91,7 +92,7 @@ def silver_datacenter():
             current_timestamp()       AS valid_from,
             CAST(NULL AS TIMESTAMP)    AS valid_to,
             true                       AS is_current
-        FROM {CATALOG}.{BRONZE_SCHEMA}.sensor_data
+        FROM sensor_silver
         """)
 
 # =============================================
@@ -110,8 +111,8 @@ def consumption_hourly():
           AVG(s.avg_power_kw) AS avg_power_kw,
           AVG(s.pue) AS avg_pue,
           AVG((s.consumption_kwh * p.price) / 1000) as cost_per_hour
-          FROM {CATALOG}.{SILVER_SCHEMA}.sensor_silver AS s
-          LEFT JOIN {CATALOG}.{SILVER_SCHEMA}.prices AS p
+          FROM sensor_silver AS s
+          LEFT JOIN prices AS p
           ON DATE_TRUNC('hour', s.timestamp_utc) = DATE_TRUNC('hour', p.timestamp_utc) 
              AND s.bidding_zone = p.bidding_zone
           GROUP BY s.bidding_zone, s.site_id, DATE(s.timestamp_utc), HOUR(s.timestamp_utc)""")
@@ -127,7 +128,7 @@ def dim_datacenter():
           valid_from, 
           valid_to, 
           is_current 
-          FROM {CATALOG}.{SILVER_SCHEMA}.silver_datacenter""")
+          FROM silver_datacenter""")
 
 # Dim table with different time grains
 @dp.materialized_view(name=TABLES["dim_date"])
@@ -158,6 +159,6 @@ def dim_date():
             FROM (
                 SELECT DISTINCT
                     CAST(date AS DATE) AS date
-                FROM {CATALOG}.{GOLD_SCHEMA}.consumption_hourly
+                FROM consumption_hourly
             )
             """)
