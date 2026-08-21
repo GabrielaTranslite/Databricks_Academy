@@ -8,6 +8,8 @@ from pyspark.sql import functions as F
 
 CATALOG       = spark.conf.get("catalog")
 BRONZE_SCHEMA = spark.conf.get("bronze_schema")
+SILVER_SCHEMA = spark.conf.get("silver_schema")
+GOLD_SCHEMA   = spark.conf.get("gold_schema")
 LANDING       = f"/Volumes/{CATALOG}/{BRONZE_SCHEMA}/entsoe_landing/prices"
 
 # Single source of truth for table names
@@ -74,13 +76,88 @@ dp.create_auto_cdc_flow(                                    # 2) the rule
     keys        = ["event_id"],
     sequence_by = F.col("ingestion_ts"),
 )
+# Datacenter table based on sensor data
+@dp.materialized_view(name = TABLES["silver_datacenter"])
+def silver_datacenter():
+    if spark.table(f"{CATALOG}.{SILVER_SCHEMA}.silver_datacenter").count() == 0:
+        spark.sql(f"""
+        INSERT INTO {CATALOG}.{SILVER_SCHEMA}.dim_datacenter
+            (site_id, site_name, country, bidding_zone, valid_from, valid_to, is_current)
+        SELECT DISTINCT
+            site_id,
+            site_name,
+            country,
+            bidding_zone,
+            current_timestamp()       AS valid_from,
+            CAST(NULL AS TIMESTAMP)    AS valid_to,
+            true                       AS is_current
+        FROM {CATALOG}.{BRONZE_SCHEMA}.sensor_data
+        """)
 
 # =============================================
-# GOLD — a small aggregate
+# GOLD — one fact table and two dimensions
 # =============================================
-@dp.materialized_view(name=TABLES["sensor_daily"])
-def sensor_daily():
-    return (spark.read.table(TABLES["sensor_silver"])
-                 .groupBy("site_id", F.to_date("timestamp_utc").alias("day"))
-                 .agg(F.avg("consumption_kwh").alias("avg_kwh")))
 
+@dp.materialized_view(name=TABLES["consumption_hourly"])
+def consumption_hourly():
+    return spark.sql(f""" 
+          SELECT 
+          s.site_id,
+          s.bidding_zone,
+          DATE(s.timestamp_utc) as date,
+          HOUR(s.timestamp_utc) as hour,
+          AVG(s.consumption_kwh),
+          AVG(s.avg_power_kw),
+          AVG(s.pue),
+          AVG((s.consumption_kwh * p.price) / 1000) as cost_per_hour
+          FROM {CATALOG}.{SILVER_SCHEMA}.sensor_silver AS s
+          LEFT JOIN {CATALOG}.{SILVER_SCHEMA}.prices AS p
+          ON DATE_TRUNC('hour', s.timestamp_utc) = DATE_TRUNC('hour', p.timestamp_utc) 
+             AND s.bidding_zone = p.bidding_zone
+          GROUP BY s.bidding_zone, s.site_id, DATE(s.timestamp_utc), HOUR(s.timestamp_utc)""")
+
+@dp.materialized_view(name=TABLES["dim_datacenter"])
+def dim_datacenter():
+    return spark.sql(f""" 
+          SELECT    
+          site_id, 
+          site_name, 
+          country, 
+          bidding_zone, 
+          valid_from, 
+          valid_to, 
+          is_current 
+          FROM {CATALOG}.{SILVER_SCHEMA}.silver_datacenter""")
+
+# Dim table with different time grains
+@dp.materialized_view(name=TABLES["dim_date"])
+def dim_date():
+    return spark.sql(f""" 
+          SELECT
+            date,
+            month(date) AS month,
+            day(date) AS day,
+            weekofyear(date) AS week,
+            year(date) AS year,
+            dayofweek(date) AS day_of_week,
+
+            CASE dayofweek(date)
+                WHEN 1 THEN 'Sunday'
+                WHEN 2 THEN 'Monday'
+                WHEN 3 THEN 'Tuesday'
+                WHEN 4 THEN 'Wednesday'
+                WHEN 5 THEN 'Thursday'
+                WHEN 6 THEN 'Friday'
+                WHEN 7 THEN 'Saturday'
+                ELSE 'Unknown'
+            END AS day_of_week_name,
+            weekofyear(date) AS week_of_year,
+            date_format(date, 'MMMM') AS month_name,
+            quarter(date) AS quarter,
+            dayofweek(date) IN (1, 7) AS is_weekend
+            FROM (
+                SELECT DISTINCT
+                    CAST(date AS DATE) AS date
+                FROM {CATALOG}.{GOLD_SCHEMA}.consumption_hourly
+            )
+            """)
