@@ -106,10 +106,10 @@ def consumption_hourly():
           s.bidding_zone,
           DATE(s.timestamp_utc) AS date,
           HOUR(s.timestamp_utc) AS hour,
-          AVG(s.consumption_kwh) AS avg_consumption_kwh,
-          AVG(s.avg_power_kw) AS avg_power_kw,
-          AVG(s.pue) AS avg_pue,
-          AVG((s.consumption_kwh * p.price) / 1000) as cost_per_hour
+          ROUND(AVG(s.consumption_kwh), 2) AS avg_consumption_kwh,
+          ROUND(AVG(s.avg_power_kw), 2) AS avg_power_kw,
+          ROUND(AVG(s.pue), 3) AS avg_pue,
+          CAST(AVG((s.consumption_kwh * p.price) / 1000) AS DECIMAL(10,2)) as cost_per_hour
           FROM sensor_silver AS s
           LEFT JOIN prices_silver AS p
           ON DATE_TRUNC('hour', s.timestamp_utc) = DATE_TRUNC('hour', p.timestamp_utc) 

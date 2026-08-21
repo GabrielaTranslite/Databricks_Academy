@@ -27,7 +27,7 @@ async def run():
                 event = make_event(
                     site, 
                     timestamp_utc=ts,
-                    consumption_kwh = round(avg_power * 1.0, 2),
+                    consumption_kwh = round(avg_power * random.uniform(0.85, 1.25), 2),
                     avg_power_kw=avg_power,
                     pue = random.uniform(1.2, 1.4),
                 )
