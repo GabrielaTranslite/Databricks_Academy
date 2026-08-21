@@ -104,11 +104,11 @@ def consumption_hourly():
           SELECT 
           s.site_id,
           s.bidding_zone,
-          DATE(s.timestamp_utc) as date,
-          HOUR(s.timestamp_utc) as hour,
-          AVG(s.consumption_kwh),
-          AVG(s.avg_power_kw),
-          AVG(s.pue),
+          DATE(s.timestamp_utc) AS date,
+          HOUR(s.timestamp_utc) AS hour,
+          AVG(s.consumption_kwh) AS avg_consumption_kwh,
+          AVG(s.avg_power_kw) AS avg_power_kw,
+          AVG(s.pue) AS avg_pue,
           AVG((s.consumption_kwh * p.price) / 1000) as cost_per_hour
           FROM {CATALOG}.{SILVER_SCHEMA}.sensor_silver AS s
           LEFT JOIN {CATALOG}.{SILVER_SCHEMA}.prices AS p
