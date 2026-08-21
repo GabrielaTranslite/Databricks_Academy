@@ -60,6 +60,7 @@ resources:
         catalog: ${var.catalog}
         bronze_schema: ${var.bronze_schema}
         silver_schema: ${var.silver_schema}
+        gold_schema: ${var.gold_schema}
 
 targets:
 

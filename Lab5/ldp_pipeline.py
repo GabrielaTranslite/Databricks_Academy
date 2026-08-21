@@ -8,8 +8,7 @@ from pyspark.sql import functions as F
 
 CATALOG       = spark.conf.get("catalog")
 BRONZE_SCHEMA = spark.conf.get("bronze_schema")
-SILVER_SCHEMA = spark.conf.get("silver_schema")
-GOLD_SCHEMA   = spark.conf.get("gold_schema")
+GOLD_SCHEMA = spark.conf.get("gold_schema")
 LANDING       = f"/Volumes/{CATALOG}/{BRONZE_SCHEMA}/entsoe_landing/prices"
 
 # Single source of truth for table names
@@ -19,10 +18,10 @@ TABLES = {
     "sensor_bronze": "sensor_bronze",
     "sensor_silver_clean": "sensor_silver_clean",
     "sensor_silver": "sensor_silver",
-    "sensor_daily": "sensor_daily"
-    "silver_datacenter": "silver_datacenter"
-    "consumption_hourly": "consumption_hourly"
-    "dim_datacenter": "dim_datacenter"
+    "sensor_daily": "sensor_daily",
+    "silver_datacenter": "silver_datacenter",
+    "consumption_hourly": "consumption_hourly",
+    "dim_datacenter": "dim_datacenter",
     "dim_date": "dim_date"
     }
 
@@ -99,7 +98,7 @@ def silver_datacenter():
 # GOLD — one fact table and two dimensions
 # =============================================
 
-@dp.materialized_view(name=TABLES["consumption_hourly"])
+@dp.materialized_view(name=f"{CATALOG}.{GOLD_SCHEMA}.consumption_hourly")
 def consumption_hourly():
     return spark.sql(f""" 
           SELECT 
@@ -112,12 +111,12 @@ def consumption_hourly():
           AVG(s.pue) AS avg_pue,
           AVG((s.consumption_kwh * p.price) / 1000) as cost_per_hour
           FROM sensor_silver AS s
-          LEFT JOIN prices AS p
+          LEFT JOIN prices_silver AS p
           ON DATE_TRUNC('hour', s.timestamp_utc) = DATE_TRUNC('hour', p.timestamp_utc) 
              AND s.bidding_zone = p.bidding_zone
           GROUP BY s.bidding_zone, s.site_id, DATE(s.timestamp_utc), HOUR(s.timestamp_utc)""")
 
-@dp.materialized_view(name=TABLES["dim_datacenter"])
+@dp.materialized_view(name=f"{CATALOG}.{GOLD_SCHEMA}.dim_datacenter")
 def dim_datacenter():
     return spark.sql(f""" 
           SELECT    
@@ -131,7 +130,7 @@ def dim_datacenter():
           FROM silver_datacenter""")
 
 # Dim table with different time grains
-@dp.materialized_view(name=TABLES["dim_date"])
+@dp.materialized_view(name=f"{CATALOG}.{GOLD_SCHEMA}.dim_date")
 def dim_date():
     return spark.sql(f""" 
           SELECT
@@ -152,13 +151,12 @@ def dim_date():
                 WHEN 7 THEN 'Saturday'
                 ELSE 'Unknown'
             END AS day_of_week_name,
-            weekofyear(date) AS week_of_year,
             date_format(date, 'MMMM') AS month_name,
             quarter(date) AS quarter,
             dayofweek(date) IN (1, 7) AS is_weekend
             FROM (
                 SELECT DISTINCT
                     CAST(date AS DATE) AS date
-                FROM consumption_hourly
+                FROM {CATALOG}.{GOLD_SCHEMA}.consumption_hourly
             )
             """)
