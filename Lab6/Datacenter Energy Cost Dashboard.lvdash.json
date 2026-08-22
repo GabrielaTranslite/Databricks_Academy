@@ -1,0 +1,673 @@
+{
+  "datasets": [
+    {
+      "name": "1093eea9",
+      "displayName": "consumption_hourly",
+      "config": {
+        "source": "workspace.gold.consumption_hourly",
+        "measures": [
+          {
+            "name": "count",
+            "expr": "COUNT(*)",
+            "comment": "Represents the total number of rows in the dataset. Use this measure to count all",
+            "displayName": "Count"
+          }
+        ],
+        "version": "1.1",
+        "dimensions": [
+          {
+            "expr": "source.*"
+          },
+          {
+            "expr": "dim_date.* EXCEPT (date)"
+          }
+        ],
+        "joins": [
+          {
+            "name": "dim_datacenter",
+            "source": "workspace.gold.dim_datacenter",
+            "on": "source.site_id = dim_datacenter.site_id"
+          },
+          {
+            "name": "dim_date",
+            "source": "workspace.gold.dim_date",
+            "cardinality": "many_to_one",
+            "on": "source.date = dim_date.date",
+            "rely": {
+              "atMostOneMatch": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "pages": [
+    {
+      "name": "11d5d53f",
+      "displayName": "Dashboard",
+      "layout": [
+        {
+          "widget": {
+            "name": "average",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "1093eea9",
+                  "fields": [
+                    {
+                      "name": "site_id",
+                      "expression": "`site_id`"
+                    },
+                    {
+                      "name": "hour",
+                      "expression": "`hour`"
+                    },
+                    {
+                      "name": "avg(avg_consumption_kwh)",
+                      "expression": "AVG(`avg_consumption_kwh`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "showTitle": true,
+                "title": "Average Hourly KWH Consumption per site ID"
+              },
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "hour",
+                  "displayName": "Hour",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "y": {
+                  "fieldName": "avg(avg_consumption_kwh)",
+                  "displayName": "Average KWH Consumption",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "site_id",
+                  "legend": {
+                    "title": "Site ID"
+                  },
+                  "scale": {
+                    "type": "categorical"
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 6,
+            "height": 10
+          }
+        },
+        {
+          "widget": {
+            "name": "70700617",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "1093eea9",
+                  "fields": [
+                    {
+                      "name": "bidding_zone",
+                      "expression": "`bidding_zone`"
+                    },
+                    {
+                      "name": "sum(cost_per_hour)",
+                      "expression": "SUM(`cost_per_hour`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "bidding_zone",
+                  "displayName": "Bidding zone",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "y-reversed"
+                    }
+                  }
+                },
+                "y": {
+                  "fieldName": "sum(cost_per_hour)",
+                  "axis": {
+                    "title": "Total Cost"
+                  },
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "bidding_zone",
+                  "legend": {
+                    "title": "Bidding zone"
+                  },
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "label": {
+                  "show": true
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 12,
+            "width": 6,
+            "height": 9
+          }
+        },
+        {
+          "widget": {
+            "name": "a1",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "1093eea9",
+                  "fields": [
+                    {
+                      "name": "site_id",
+                      "expression": "`site_id`"
+                    },
+                    {
+                      "name": "hour",
+                      "expression": "`hour`"
+                    },
+                    {
+                      "name": "avg(avg_pue)",
+                      "expression": "AVG(`avg_pue`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "showTitle": true,
+                "title": "Average Hourly Power Usage Effectiveness (PUE) per site ID"
+              },
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "hour",
+                  "axis": {
+                    "title": "Hour"
+                  },
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 2
+                    }
+                  },
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "y": {
+                  "fieldName": "avg(avg_pue)",
+                  "axis": {
+                    "title": "Average PUE"
+                  },
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "site_id",
+                  "displayName": "Site ID",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 2,
+            "width": 6,
+            "height": 10
+          }
+        },
+        {
+          "widget": {
+            "name": "c1",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "1093eea9",
+                  "fields": [
+                    {
+                      "name": "day_of_week_name",
+                      "expression": "`day_of_week_name`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": "Day of the Week"
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "day_of_week_name"
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 1,
+            "y": 0,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "8fa89a10",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "1093eea9",
+                  "fields": [
+                    {
+                      "name": "site_id",
+                      "expression": "`site_id`"
+                    },
+                    {
+                      "name": "date",
+                      "expression": "`date`"
+                    },
+                    {
+                      "name": "avg(cost_per_hour)",
+                      "expression": "AVG(`cost_per_hour`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "date",
+                  "displayName": "Date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fieldName": "avg(cost_per_hour)",
+                  "axis": {
+                    "title": "Average Cost"
+                  },
+                  "displayName": "Average Cost",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "site_id",
+                  "displayName": "Site ID",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 12,
+            "width": 6,
+            "height": 9
+          }
+        },
+        {
+          "widget": {
+            "name": "total-cost",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "1093eea9",
+                  "fields": [
+                    {
+                      "name": "sum(cost_per_hour)",
+                      "expression": "SUM(`cost_per_hour`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "sparkChart": {
+                "hide": true
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Total Cost"
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(cost_per_hour)"
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 0,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "average-pue",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "1093eea9",
+                  "fields": [
+                    {
+                      "name": "avg(avg_pue)",
+                      "expression": "AVG(`avg_pue`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "sparkChart": {
+                "hide": true
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Average PUE"
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "avg(avg_pue)"
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 0,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "date",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "1093eea9",
+                  "fields": [
+                    {
+                      "name": "max(date)",
+                      "expression": "MAX(`date`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": "Date"
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "max(date)"
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 1,
+            "height": 2
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1"
+    },
+    {
+      "name": "acf5281b",
+      "displayName": "Global Filters",
+      "layout": [
+        {
+          "widget": {
+            "name": "bidding-zone",
+            "queries": [
+              {
+                "name": "dashboards/01f19e1f0fe7164a93b360933c291584/datasets/01f19e1f559616c1a84e87516130816f_bidding_zone",
+                "query": {
+                  "datasetName": "1093eea9",
+                  "fields": [
+                    {
+                      "name": "bidding_zone",
+                      "expression": "`bidding_zone`"
+                    },
+                    {
+                      "name": "bidding_zone_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": "Bidding zone"
+              },
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "bidding_zone",
+                    "queryName": "dashboards/01f19e1f0fe7164a93b360933c291584/datasets/01f19e1f559616c1a84e87516130816f_bidding_zone"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "date",
+            "queries": [
+              {
+                "name": "dashboards/01f19e1f0fe7164a93b360933c291584/datasets/01f19e1f559616c1a84e87516130816f_date",
+                "query": {
+                  "datasetName": "1093eea9",
+                  "fields": [
+                    {
+                      "name": "date",
+                      "expression": "`date`"
+                    },
+                    {
+                      "name": "date_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "scale": {
+                "type": "categorical",
+                "sort": {
+                  "by": "natural-order-reversed"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Date"
+              },
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "date",
+                    "queryName": "dashboards/01f19e1f0fe7164a93b360933c291584/datasets/01f19e1f559616c1a84e87516130816f_date"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "day-of-the-week",
+            "queries": [
+              {
+                "name": "dashboards/01f19e1f0fe7164a93b360933c291584/datasets/01f19e1f559616c1a84e87516130816f_day_of_week_name",
+                "query": {
+                  "datasetName": "1093eea9",
+                  "fields": [
+                    {
+                      "name": "day_of_week_name",
+                      "expression": "`day_of_week_name`"
+                    },
+                    {
+                      "name": "day_of_week_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": "Day of the Week"
+              },
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "day_of_week_name",
+                    "queryName": "dashboards/01f19e1f0fe7164a93b360933c291584/datasets/01f19e1f559616c1a84e87516130816f_day_of_week_name"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 4,
+            "width": 1,
+            "height": 2
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_GLOBAL_FILTERS",
+      "layoutVersion": "GRID_V1"
+    }
+  ],
+  "uiSettings": {
+    "theme": {
+      "widgetHeaderAlignment": "ALIGNMENT_UNSPECIFIED"
+    },
+    "applyModeEnabled": false
+  }
+}
