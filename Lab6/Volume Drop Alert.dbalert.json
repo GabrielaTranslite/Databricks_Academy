@@ -1,0 +1,25 @@
+{
+  "evaluation": {
+    "source": {
+      "name": "rows_today",
+      "display": "rows_today",
+      "aggregation": "AGGREGATION_UNSPECIFIED"
+    },
+    "comparison_operator": "LESS_THAN",
+    "threshold": {
+      "value": {
+        "double_value": 192.0
+      }
+    },
+    "notification": {}
+  },
+  "schedule": {
+    "quartz_cron_schedule": "37 5 18 * * ?",
+    "timezone_id": "Europe/Warsaw"
+  },
+  "query_lines": [
+    "SELECT COUNT(*) AS rows_today",
+    "FROM workspace.gold.consumption_hourly",
+    "WHERE date = '2026-08-21'"
+  ]
+}
