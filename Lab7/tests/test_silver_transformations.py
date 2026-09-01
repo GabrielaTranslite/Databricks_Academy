@@ -2,6 +2,7 @@ import pytest
 from pyspark.sql import functions as F
 from pyspark.sql import types as T
 from datetime import datetime
+from decimal import Decimal
 from silver_transformations import clean_prices, clean_sensor
 
 # Defining the schema of bronze prices data (realistic: strings from JSON/CSV)
@@ -87,5 +88,16 @@ def test_empty_input_keeps_schema_and_has_no_rows(spark_session):
         "silver_processed_ts"
     }.issubset(result.columns)
 
+def test_valid_row_is_cast_to_target_types(spark_session):
+    """Tests if the function behaves correctly with valid data"""
+    
+       r = get_result(spark_session)  # domyślny dobry wiersz
+       assert r.price == Decimal("100.00")
+       assert r.timestamp_utc == datetime(2026, 7, 29, 15, 30, 8)
 
+def test_output_schema_types(spark_session):
+    """Tests if the function returns the correct schema"""
+       out = clean_prices(make_input(spark_session)).schema
+       assert out["price"].dataType == T.DecimalType(10, 2)
+       assert isinstance(out["timestamp_utc"].dataType, T.TimestampType)
     

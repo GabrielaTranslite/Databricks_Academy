@@ -10,11 +10,11 @@ def clean_prices(df):
     """
     return (df
         # Convert price from string to decimal, invalid values become null
-        .withColumn("price", F.col("price").cast("decimal(10,2)"))
+        .withColumn("price", F.expr("try_cast(price as decimal(10,2))"))
         # Convert timestamps from string to timestamp, invalid values become null
-        .withColumn("timestamp_utc", F.to_timestamp(F.col("timestamp_utc")))
-        .withColumn("ingestion_ts", F.to_timestamp(F.col("ingestion_ts")))
-        .withColumn("silver_processed_ts", F.to_timestamp(F.col("silver_processed_ts")))
+        .withColumn("timestamp_utc",       F.try_to_timestamp("timestamp_utc"))
+        .withColumn("ingestion_ts",        F.try_to_timestamp("ingestion_ts"))
+        .withColumn("silver_processed_ts", F.try_to_timestamp("silver_processed_ts"))
     )
 
 
