@@ -22,6 +22,6 @@ def clean_sensor(df):
     """Cleans the bronze DataFrame with sensor data and returns a cleaned DataFrame with sensor data."""
 
     return (df
-        .withColumn("pue", F.col("pue").cast("decimal(4,3)"))
-        .withColumn("consumption_kwh", F.col("consumption_kwh").cast("decimal(10,4)"))
+        .withColumn("pue", F.expr("try_cast(pue as decimal(4,3))"))
+        .withColumn("consumption_kwh", F.expr("try_cast(consumption_kwh as decimal(10,4))"))
     )

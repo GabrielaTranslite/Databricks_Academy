@@ -1,4 +1,5 @@
 .venv/
+.venv-dbconnect/
 __pycache__/
 *.pyc
 .env
