@@ -53,36 +53,71 @@ def sensor_bronze():
 # ==============================================
 
 # --- DQX quality checks (metadata form) ---
-CHECKS = [
+prices_checks = [
+    # completeness
     {"criticality": "error", "check": {"function": "is_not_null", "arguments": {"column": "bidding_zone"}}},
     {"criticality": "error", "check": {"function": "is_not_null", "arguments": {"column": "price"}}},
-    {"criticality": "error", "check": {"function": "is_not_null", "arguments": {"column": "bidding_zone"}}},
+    {"criticality": "error", "check": {"function": "is_not_null", "arguments": {"column": "timestamp_utc"}}},
+
+    # validity
+    {"criticality": "error", "check": {"function": "is_not_less_than", "arguments": {"column": "price", "limit": 0}}},
+    {"criticality": "error", "check": {"function": "is_in_list",
+        "arguments": {"column": "bidding_zone", "allowed": ["PL","DE_LU","FR","ES","CZ","SK","LT","PT"]}}},
+    {"criticality": "warn",  "check": {"function": "is_in_list", "arguments": {"column": "currency", "allowed": ["EUR"]}}},
+    {"criticality": "warn",  "check": {"function": "is_in_list", "arguments": {"column": "unit", "allowed": ["MWH"]}}},
+
+    # uniqueness (dataset-level): one price per zone and timestamp_utc
+    {"criticality": "error", "check": {"function": "is_unique", "arguments": {"columns": ["bidding_zone", "timestamp_utc"]}}},
+
+    # timeliness - data is fresh for 1 day
+    {"criticality": "warn",  "check": {"function": "is_data_fresh", "arguments": {"column": "ingestion_ts", "max_age_minutes": 1440}}},
+]
+
+sensor_checks = [
+    # completeness
     {"criticality": "error", "check": {"function": "is_not_null", "arguments": {"column": "event_id"}}},
-    {"criticality": "error", "check": {"function": "is_in_range",
-        "arguments": {"column": "pue", "min_limit": 1.0, "max_limit": 3.0}}},
-    {"criticality": "warn", "check": {"function": "is_not_less_than",
-        "arguments": {"column": "consumption_kwh", "limit": 0}}},
-    {"criticality": "warn", "check": {"function": "is_not_less_than",
-        "arguments": {"column": "price", "limit": 0}}},
+    {"criticality": "error", "check": {"function": "is_not_null", "arguments": {"column": "bidding_zone"}}},
+    {"criticality": "error", "check": {"function": "is_not_null", "arguments": {"column": "site_id"}}},
+    {"criticality": "error", "check": {"function": "is_not_null", "arguments": {"column": "timestamp_utc"}}},
+    {"criticality": "error", "check": {"function": "is_not_null", "arguments": {"column": "consumption_kwh"}}},
+    {"criticality": "error", "check": {"function": "is_not_null", "arguments": {"column": "pue"}}},
+
+    # uniqueness (dataset-level): event_id is a business key
+    {"criticality": "error", "check": {"function": "is_unique", "arguments": {"columns": ["event_id"]}}},
+
+    # validity
+    {"criticality": "error", "check": {"function": "is_in_range", "arguments": {"column": "pue", "min_limit": 1.0, "max_limit": 3.0}}},
+    {"criticality": "error", "check": {"function": "is_not_less_than", "arguments": {"column": "consumption_kwh", "limit": 0}}},
+    {"criticality": "warn",  "check": {"function": "is_not_less_than", "arguments": {"column": "avg_power_kw", "limit": 0}}},
+    {"criticality": "error", "check": {"function": "is_in_list",
+        "arguments": {"column": "bidding_zone", "allowed": ["PL","DE_LU","FR","ES","CZ","SK","LT","PT"]}}},
+
+    # consistency (cross-column, SQL): if there is consumption, there must be power draw
+    {"criticality": "warn", "check": {"function": "sql_expression",
+        "arguments": {"expression": "consumption_kwh = 0 OR avg_power_kw > 0",
+                      "msg": "consumption without power draw", "name": "consumption_power_consistency"}}},
+
+    # timeliness: sensor stream is fresh for 2 hours
+    {"criticality": "warn", "check": {"function": "is_data_fresh", "arguments": {"column": "timestamp_utc", "max_age_minutes": 120}}},
 ]
 #---PRICES----
 # Prices silver: transform and apply DQX
-@dp.table(name = TABLES["checked_prices"])
+@dp.materialized_view(name = TABLES["checked_prices"])
 def checked_prices():
     df = clean_prices(spark.read.table(TABLES["prices_bronze"]))
-    return dq.apply_checks_by_metadata(df, CHECKS)
+    return dq.apply_checks_by_metadata(df, prices_checks)
 
 # Valid prices silver — good rows only, drop DQX helper cols
-@dp.table(name=TABLES["valid_prices"])
+@dp.materialized_view(name=TABLES["valid_prices"])
 def valid_prices():
-    return (spark.readStream.table(TABLES["checked_prices"])
+    return (spark.read.table(TABLES["checked_prices"])
             .filter("_errors IS NULL")
             .drop("_errors", "_warnings"))
     
 # Quarantine prices — bad rows, keep the DQX error detail
-@dp.table(name=TABLES["quarantine_prices"])
+@dp.materialized_view(name=TABLES["quarantine_prices"])
 def quarantine_prices():
-    return spark.readStream.table(TABLES["checked_prices"]).filter("_errors IS NOT NULL")
+    return spark.read.table(TABLES["checked_prices"]).filter("_errors IS NOT NULL")
 
 #---SENSOR----    
 # Sensor silver: transform and apply DQX
@@ -108,7 +143,7 @@ def quarantine_sensor():
 dp.create_streaming_table(TABLES["sensor_silver"])          # 1) empty target
 dp.create_auto_cdc_flow(                                    # 2) the rule
     target      = TABLES["sensor_silver"],
-    source      = TABLES["sensor_silver_clean"],
+    source      = TABLES["valid_sensor"],
     keys        = ["event_id"],
     sequence_by = F.col("ingestion_ts"),
 )
@@ -144,7 +179,7 @@ def consumption_hourly():
           ROUND(AVG(s.pue), 3) AS avg_pue,
           CAST(AVG((s.consumption_kwh * p.price) / 1000) AS DECIMAL(10,2)) as cost_per_hour
           FROM sensor_silver AS s
-          LEFT JOIN prices_silver AS p
+          LEFT JOIN valid_prices AS p
           ON DATE_TRUNC('hour', s.timestamp_utc) = DATE_TRUNC('hour', p.timestamp_utc) 
              AND s.bidding_zone = p.bidding_zone
           GROUP BY s.bidding_zone, s.site_id, DATE(s.timestamp_utc), HOUR(s.timestamp_utc)""")
@@ -162,34 +197,4 @@ def dim_datacenter():
           is_current 
           FROM silver_datacenter""")
 
-# Dim table with different time grains
-@dp.materialized_view(name=f"{CATALOG}.{GOLD_SCHEMA}.dim_date")
-def dim_date():
-    return spark.sql(f""" 
-          SELECT
-            date,
-            month(date) AS month,
-            day(date) AS day,
-            weekofyear(date) AS week,
-            year(date) AS year,
-            dayofweek(date) AS day_of_week,
 
-            CASE dayofweek(date)
-                WHEN 1 THEN 'Sunday'
-                WHEN 2 THEN 'Monday'
-                WHEN 3 THEN 'Tuesday'
-                WHEN 4 THEN 'Wednesday'
-                WHEN 5 THEN 'Thursday'
-                WHEN 6 THEN 'Friday'
-                WHEN 7 THEN 'Saturday'
-                ELSE 'Unknown'
-            END AS day_of_week_name,
-            date_format(date, 'MMMM') AS month_name,
-            quarter(date) AS quarter,
-            dayofweek(date) IN (1, 7) AS is_weekend
-            FROM (
-                SELECT DISTINCT
-                    CAST(date AS DATE) AS date
-                FROM {CATALOG}.{GOLD_SCHEMA}.consumption_hourly
-            )
-            """)
