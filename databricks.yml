@@ -6,15 +6,20 @@
 #   prod -> Azure Databricks. Bronze is produced from the real ENTSO-E API
 #           (Auto Loader) and the Azure Event Hub stream.
 #
-# This bundle now deploys TWO things:
-#   1. silver_pipeline  (classic Job, Lab 4)  — imperative notebooks + MERGE, per target.
-#   2. entsoe_silver_ldp (declarative pipeline, Lab 5) — Lakeflow, one top-level definition.
-# Keeping both is intentional: they are the "classic vs declarative" comparison.
+# This bundle deploys:
+#   1. silver_pipeline    (classic Job, Lab 4)   -- imperative notebooks + MERGE, per target.
+#   2. entsoe_silver_ldp  (declarative pipeline)  -- Lakeflow, Lab 7 version: silver + DQX
+#                                                    quality checks (valid / quarantine split) + gold.
+#   3. tests_job          (Job, Lab 7)            -- pytest unit tests run headless on serverless.
+#   4. gold_dim_job       (Job, Lab 7)            -- runs the pipeline, then builds the dim_date
+#                                                    calendar dimension (generated from a date range).
+# silver_pipeline and entsoe_silver_ldp are kept side by side as the "classic vs declarative" comparison.
 #
-# Deploy dev:   databricks bundle deploy -t dev
-# Run job:      databricks bundle run silver_pipeline    -t dev
-# Run pipeline: databricks bundle run entsoe_silver_ldp  -t dev
-# Deploy prod:  databricks bundle deploy -t prod
+# Deploy dev:      databricks bundle deploy -t dev
+# Run unit tests:  databricks bundle run tests_job          -t dev
+# Run pipeline:    databricks bundle run entsoe_silver_ldp  -t dev
+# Run gold + dim:  databricks bundle run gold_dim_job       -t dev
+# Deploy prod:     databricks bundle deploy -t prod
 
 bundle:
   name: entsoe_silver
@@ -33,6 +38,12 @@ variables:
   gold_schema:
     description: Gold schema.
     default: gold
+  dim_date_start:
+    description: dim_date range start (inclusive), passed to the dim_date notebook.
+    default: "2026-06-01"
+  dim_date_end:
+    description: dim_date range end (inclusive), passed to the dim_date notebook.
+    default: "2026-12-31"
 sync:
   exclude:
     - "*.dbc"
@@ -41,10 +52,12 @@ sync:
     - "**/__pycache__"
 
 # ===========================================================================
-# Lab 5 — declarative pipeline (Lakeflow Spark Declarative Pipelines).
+# Lab 7 -- declarative pipeline (Lakeflow Spark Declarative Pipelines).
 # Defined ONCE at top level: the definition is identical for dev and prod,
 # only the ${var.*} values differ (resolved per target).
 # ldp_pipeline.py is a plain .py source file >> `file:` (not `notebook:`).
+# The pipeline now runs the DQX quality suite in silver, so it needs the
+# databricks-labs-dqx dependency and the silver_transformations helper module.
 # ===========================================================================
 resources:
   pipelines:
@@ -52,11 +65,18 @@ resources:
       name: entsoe-silver-ldp-${bundle.target}   # entsoe-silver-ldp-dev / -prod
       catalog: ${var.catalog}                    # target catalog (workspace on dev, dbr_dev on prod)
       schema: ${var.silver_schema}               # where the pipeline writes its tables
-      serverless: true                           
+      serverless: true
 
       libraries:
         - file:
-            path: ./Lab5/ldp_pipeline.py
+            path: ./Lab7/ldp_pipeline.py            # Lab 7 version: silver + DQX + gold (was ./Lab5/...)
+        - file:
+            path: ./Lab7/silver_transformations.py  # helper module imported by the pipeline (clean_prices / clean_sensor)
+
+      # Pipeline environment (serverless): pip dependencies installed for the pipeline.
+      environment:
+        dependencies:
+          - databricks-labs-dqx                     # pin to your tested version if needed: `pip show databricks-labs-dqx`
 
       # Becomes spark.conf entries, read by spark.conf.get(...) in the pipeline file.
       configuration:
@@ -68,7 +88,7 @@ resources:
 targets:
 
   # ===========================================================================
-  # DEV  —  Free Edition, generator-seeded bronze
+  # DEV  --  Free Edition, generator-seeded bronze
   # ===========================================================================
   dev:
     mode: development
@@ -95,6 +115,39 @@ targets:
                 environment_version: "3"
                 dependencies:
                   - pytest
+
+        # --- Lab 7: run the declarative pipeline (silver + DQX + gold), then build dim_date ---
+        gold_dim_job:
+          name: entsoe-gold-dim-dev
+          tasks:
+            # Seed bronze on Free Edition with the synthetic generator.
+            - task_key: generate_bronze
+              notebook_task:
+                notebook_path: ./Lab4/generate_bronze_sample.ipynb
+                base_parameters:
+                  catalog: ${var.catalog}
+                  bronze_schema: ${var.bronze_schema}
+                  n_days: "14"
+                  seed: "42"
+            # Silver + DQX + gold, all inside the declarative pipeline.
+            - task_key: run_pipeline
+              depends_on:
+                - task_key: generate_bronze
+              pipeline_task:
+                pipeline_id: ${resources.pipelines.entsoe_silver_ldp.id}
+            # dim_date is generated from a date range (no fact scan), so it only needs the gold schema to exist.
+            - task_key: build_dim_date
+              depends_on:
+                - task_key: run_pipeline
+              notebook_task:
+                notebook_path: ./Lab7/06_gold_dim_date.ipynb
+                base_parameters:
+                  catalog: ${var.catalog}
+                  gold_schema: ${var.gold_schema}
+                  silver_schema: ${var.silver_schema}
+                  dim_date_start: ${var.dim_date_start}
+                  dim_date_end: ${var.dim_date_end}
+
         silver_pipeline:
           name: entsoe-silver-pipeline-dev
           schedule:
@@ -148,7 +201,7 @@ targets:
                   run_checks: "false"
 
   # ===========================================================================
-  # PROD  —  Azure Databricks, real ENTSO-E API + Azure Event Hub
+  # PROD  --  Azure Databricks, real ENTSO-E API + Azure Event Hub
   # ===========================================================================
   prod:
     mode: production
@@ -162,6 +215,27 @@ targets:
       gold_schema: gabrielajaniszews786_gold
     resources:
       jobs:
+        # --- Lab 7: run the declarative pipeline (silver + DQX + gold), then build dim_date ---
+        # Bronze on prod is produced by the ingestion tasks in silver_pipeline (fetch / autoloader /
+        # event hub), so this job assumes bronze is already populated and just runs pipeline + dim_date.
+        gold_dim_job:
+          name: entsoe-gold-dim-prod
+          tasks:
+            - task_key: run_pipeline
+              pipeline_task:
+                pipeline_id: ${resources.pipelines.entsoe_silver_ldp.id}
+            - task_key: build_dim_date
+              depends_on:
+                - task_key: run_pipeline
+              notebook_task:
+                notebook_path: ./Lab7/06_gold_dim_date.ipynb
+                base_parameters:
+                  catalog: ${var.catalog}
+                  gold_schema: ${var.gold_schema}
+                  silver_schema: ${var.silver_schema}
+                  dim_date_start: ${var.dim_date_start}
+                  dim_date_end: ${var.dim_date_end}
+
         silver_pipeline:
           name: entsoe-silver-pipeline-prod
           schedule:
