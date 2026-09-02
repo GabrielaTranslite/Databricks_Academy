@@ -4,7 +4,7 @@ from databricks.labs.dqx.engine import DQEngine
 from databricks.sdk import WorkspaceClient
 from silver_transformations import clean_sensor, clean_prices
 
-# Lab 7 — Lakeflow declarative pipeline: bronze -> silver -> gold with DBX suite.
+# Lab 7 — Lakeflow declarative pipeline: bronze -> silver -> gold with DQX suite.
 # Sources: prices_bronze = JSON files (file source), sensor_bronze = streaming (Delta stream).
 # Silver: expectations replace Lab 4 .filter()/CHECK; dedup via create_auto_cdc_flow replaces MERGE.
 # Params come from the pipeline configuration (spark.conf.get), not widgets.
