@@ -91,7 +91,7 @@ def test_empty_input_keeps_schema_and_has_no_rows(spark_session):
 def test_valid_row_is_cast_to_target_types(spark_session):
     """Tests if the function behaves correctly with valid data"""
     
-    r = get_result(spark_session)  # domyślny dobry wiersz
+    r = get_result(spark_session)
     assert r.price == Decimal("100.00")
     actual_utc = r.timestamp_utc.astimezone(timezone.utc).replace(tzinfo=None) # 
     assert actual_utc == datetime(2026, 7, 29, 15, 30, 8)

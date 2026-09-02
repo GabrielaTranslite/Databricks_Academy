@@ -2,9 +2,13 @@ import os
 from pathlib import Path
 
 import pytest
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).with_name(".env"))
+except ImportError:
+    pass
 
-load_dotenv(Path(__file__).with_name(".env"))
+
 
 # DATABRICKS_CONFIG_PROFILE: which ~/.databrickscfg profile to use for branch 2
 # below. Needed because the CLI's default_profile may point at a different

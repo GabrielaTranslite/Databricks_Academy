@@ -1,0 +1,17 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug: pytest (Lab7, Connect)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": ["${file}", "-v", "-s"],
+      "cwd": "${workspaceFolder}/Lab7",
+      "python": "${workspaceFolder}/.venv-dbconnect/Scripts/python.exe",
+      "env": { "DATABRICKS_CONFIG_PROFILE": "gabrielajaniszewska@translite.pl" },
+      "console": "integratedTerminal",
+      "justMyCode": false
+    }
+  ]
+}
