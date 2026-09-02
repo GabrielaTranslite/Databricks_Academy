@@ -1,11 +1,15 @@
 from pyspark import pipelines as dp
 from pyspark.sql import functions as F
+from databricks.labs.dqx.engine import DQEngine
+from databricks.sdk import WorkspaceClient
 from silver_transformations import clean_sensor, clean_prices
 
-# Lab 5 — Lakeflow declarative pipeline: bronze -> silver -> gold.
+# Lab 7 — Lakeflow declarative pipeline: bronze -> silver -> gold with DBX suite.
 # Sources: prices_bronze = JSON files (file source), sensor_bronze = streaming (Delta stream).
 # Silver: expectations replace Lab 4 .filter()/CHECK; dedup via create_auto_cdc_flow replaces MERGE.
 # Params come from the pipeline configuration (spark.conf.get), not widgets.
+
+dq = DQEngine(WorkspaceClient())
 
 CATALOG       = spark.conf.get("catalog")
 BRONZE_SCHEMA = spark.conf.get("bronze_schema")
@@ -15,11 +19,14 @@ LANDING       = f"/Volumes/{CATALOG}/{BRONZE_SCHEMA}/entsoe_landing/prices"
 # Single source of truth for table names
 TABLES = {
     "prices_bronze": "prices_bronze",
-    "prices_silver": "prices_silver",
     "sensor_bronze": "sensor_bronze",
-    "sensor_silver_clean": "sensor_silver_clean",
+    "checked_prices": "checked_prices",
+    "valid_prices": "valid_prices",
+    "quarantine_prices": "quarantine_prices",
+    "checked_sensor": "checked_sensor",
+    "valid_sensor": "valid_sensor",
+    "quarantine_sensor": "quarantine_sensor",
     "sensor_silver": "sensor_silver",
-    "sensor_daily": "sensor_daily",
     "silver_datacenter": "silver_datacenter",
     "consumption_hourly": "consumption_hourly",
     "dim_datacenter": "dim_datacenter",
@@ -45,29 +52,56 @@ def sensor_bronze():
 # SILVER LAYER - data quality + deduplication
 # ==============================================
 
-# Prices silver: cast types and drop rows that must not reach silver.
-@dp.materialized_view(name = TABLES["prices_silver"])
-@dp.expect_all_or_drop({
-    "zone_present":  "bidding_zone IS NOT NULL",
-    "price_present": "price IS NOT NULL"
-})
-def prices_silver():
-    return (clean_prices(spark.read.table(TABLES["prices_bronze"]))
+# --- DQX quality checks (metadata form) ---
+CHECKS = [
+    {"criticality": "error", "check": {"function": "is_not_null", "arguments": {"column": "bidding_zone"}}},
+    {"criticality": "error", "check": {"function": "is_not_null", "arguments": {"column": "price"}}},
+    {"criticality": "error", "check": {"function": "is_not_null", "arguments": {"column": "bidding_zone"}}},
+    {"criticality": "error", "check": {"function": "is_not_null", "arguments": {"column": "event_id"}}},
+    {"criticality": "error", "check": {"function": "is_in_range",
+        "arguments": {"column": "pue", "min_limit": 1.0, "max_limit": 3.0}}},
+    {"criticality": "warn", "check": {"function": "is_not_less_than",
+        "arguments": {"column": "consumption_kwh", "limit": 0}}},
+    {"criticality": "warn", "check": {"function": "is_not_less_than",
+        "arguments": {"column": "price", "limit": 0}}},
+]
+#---PRICES----
+# Prices silver: transform and apply DQX
+@dp.table(name = TABLES["checked_prices"])
+def checked_prices():
+    df = clean_prices(spark.read.table(TABLES["prices_bronze"]))
+    return dq.apply_checks_by_metadata(df, CHECKS)
+
+# Valid prices silver — good rows only, drop DQX helper cols
+@dp.table(name=TABLES["valid_prices"])
+def valid_prices():
+    return (spark.readStream.table(TABLES["checked_prices"])
+            .filter("_errors IS NULL")
+            .drop("_errors", "_warnings"))
     
-# Sensor silver (clean):
-# - cast types
-# - enforce domain rules (expect_all_or_fail)
-@dp.table(name=TABLES["sensor_silver_clean"])
-@dp.expect_all_or_drop({                       # bad rows are dropped
-    "key_present":  "event_id IS NOT NULL",
-    "zone_present": "bidding_zone IS NOT NULL",
-})
-@dp.expect_all_or_fail({                       # broken domain rules stop the run
-    "pue_valid":    "pue BETWEEN 1.0 AND 3.0",
-    "kwh_positive": "consumption_kwh >= 0",
-})
-def sensor_silver_clean():
-    return (clean_sensor(spark.readStream.table(TABLES["sensor_bronze"]))
+# Quarantine prices — bad rows, keep the DQX error detail
+@dp.table(name=TABLES["quarantine_prices"])
+def quarantine_prices():
+    return spark.readStream.table(TABLES["checked_prices"]).filter("_errors IS NOT NULL")
+
+#---SENSOR----    
+# Sensor silver: transform and apply DQX
+@dp.table(name=TABLES["checked_sensor"])
+def checked_sensor():
+    df = clean_sensor(spark.readStream.table(TABLES["sensor_bronze"]))
+    return dq.apply_checks_by_metadata(df, CHECKS)
+
+# Valid sensor silver — good rows only, drop DQX helper cols
+@dp.table(name=TABLES["valid_sensor"])
+def valid_sensor():
+    return (spark.readStream.table(TABLES["checked_sensor"])
+            .filter("_errors IS NULL")
+            .drop("_errors", "_warnings"))
+    
+# Quarantine sensor — bad rows, keep the DQX error detail
+@dp.table(name=TABLES["quarantine_sensor"])
+def quarantine_sensor():
+    return spark.readStream.table(TABLES["checked_sensor"]).filter("_errors IS NOT NULL")
 
     
 # Sensor deduplicaton: keep the newest row per key (latest ingestion_ts). The engine does the idempotent upsert.
