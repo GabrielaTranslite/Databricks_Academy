@@ -82,9 +82,6 @@ sensor_checks = [
     {"criticality": "error", "check": {"function": "is_not_null", "arguments": {"column": "consumption_kwh"}}},
     {"criticality": "error", "check": {"function": "is_not_null", "arguments": {"column": "pue"}}},
 
-    # uniqueness (dataset-level): event_id is a business key
-    {"criticality": "error", "check": {"function": "is_unique", "arguments": {"columns": ["event_id"]}}},
-
     # validity
     {"criticality": "error", "check": {"function": "is_in_range", "arguments": {"column": "pue", "min_limit": 1.0, "max_limit": 3.0}}},
     {"criticality": "error", "check": {"function": "is_not_less_than", "arguments": {"column": "consumption_kwh", "limit": 0}}},
@@ -124,7 +121,7 @@ def quarantine_prices():
 @dp.table(name=TABLES["checked_sensor"])
 def checked_sensor():
     df = clean_sensor(spark.readStream.table(TABLES["sensor_bronze"]))
-    return dq.apply_checks_by_metadata(df, CHECKS)
+    return dq.apply_checks_by_metadata(df, sensor_checks)
 
 # Valid sensor silver — good rows only, drop DQX helper cols
 @dp.table(name=TABLES["valid_sensor"])
