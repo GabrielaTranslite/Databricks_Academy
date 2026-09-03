@@ -76,7 +76,7 @@ resources:
       # Pipeline environment (serverless): pip dependencies installed for the pipeline.
       environment:
         dependencies:
-          - databricks-labs-dqx                     # pin to your tested version if needed: `pip show databricks-labs-dqx`
+          - databricks-labs-dqx==0.16.0             # pinned for reproducibility (bump if `pip show databricks-labs-dqx` shows newer)
 
       # Becomes spark.conf entries, read by spark.conf.get(...) in the pipeline file.
       configuration:
@@ -122,6 +122,11 @@ targets:
           tasks:
             # Seed bronze on Free Edition with the synthetic generator.
             - task_key: generate_bronze
+              # Free Edition compute can be slow to start; retry a stuck or failed start.
+              max_retries: 2
+              min_retry_interval_millis: 120000   # wait 2 min between retries
+              retry_on_timeout: true
+              timeout_seconds: 1800               # give up after 30 min waiting, then retry
               notebook_task:
                 notebook_path: ./Lab4/generate_bronze_sample.ipynb
                 base_parameters:
