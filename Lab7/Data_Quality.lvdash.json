@@ -1,0 +1,676 @@
+{
+  "datasets": [
+    {
+      "name": "a29cac55",
+      "displayName": "quarantine_sensor",
+      "config": {
+        "version": "1.1",
+        "source": "workspace.silver.quarantine_sensor",
+        "dimensions": [
+          {
+            "expr": "source.*"
+          }
+        ],
+        "measures": [
+          {
+            "name": "count",
+            "expr": "COUNT(*)",
+            "comment": "Represents the total number of rows in the dataset. Use this measure to count all",
+            "displayName": "Count"
+          }
+        ]
+      }
+    },
+    {
+      "name": "6b5aa146",
+      "displayName": "valid_prices",
+      "config": {
+        "version": "1.1",
+        "source": "workspace.silver.valid_prices",
+        "dimensions": [
+          {
+            "expr": "source.*"
+          }
+        ],
+        "measures": [
+          {
+            "name": "count",
+            "expr": "COUNT(*)",
+            "comment": "Represents the total number of rows in the dataset. Use this measure to count all",
+            "displayName": "Count"
+          }
+        ]
+      }
+    },
+    {
+      "name": "c706f5df",
+      "displayName": "quarantine_prices",
+      "config": {
+        "version": "1.1",
+        "source": "workspace.silver.quarantine_prices",
+        "dimensions": [
+          {
+            "expr": "source.*"
+          }
+        ],
+        "measures": [
+          {
+            "name": "count",
+            "expr": "COUNT(*)",
+            "comment": "Represents the total number of rows in the dataset. Use this measure to count all",
+            "displayName": "Count"
+          }
+        ]
+      }
+    },
+    {
+      "name": "7f546b6f",
+      "displayName": "valid_sensor",
+      "config": {
+        "version": "1.1",
+        "source": "workspace.silver.valid_sensor",
+        "dimensions": [
+          {
+            "expr": "source.*"
+          }
+        ],
+        "measures": [
+          {
+            "name": "count",
+            "expr": "COUNT(*)",
+            "comment": "Represents the total number of rows in the dataset. Use this measure to count all",
+            "displayName": "Count"
+          }
+        ]
+      }
+    },
+    {
+      "name": "22df3642",
+      "displayName": "reconciliation_results",
+      "config": {
+        "version": "1.1",
+        "source": "workspace.silver.reconciliation_results",
+        "dimensions": [
+          {
+            "expr": "source.*"
+          }
+        ],
+        "measures": [
+          {
+            "name": "count",
+            "expr": "COUNT(*)",
+            "comment": "Represents the total number of rows in the dataset. Use this measure to count all",
+            "displayName": "Count"
+          }
+        ]
+      }
+    },
+    {
+      "name": "5bf2eefe",
+      "displayName": "data_quality_summary",
+      "queryLines": [
+        "SELECT\r\n",
+        "  'prices' AS dataset,\r\n",
+        "  'valid' AS status,\r\n",
+        "  count(*) AS n\r\n",
+        "FROM\r\n",
+        "  IDENTIFIER(:catalog_name || '.' || :schema_name || '.valid_prices')\r\n",
+        "UNION ALL\r\n",
+        "SELECT\r\n",
+        "  'prices',\r\n",
+        "  'quarantine',\r\n",
+        "  count(*)\r\n",
+        "FROM\r\n",
+        "  IDENTIFIER(:catalog_name || '.' || :schema_name || '.quarantine_prices')\r\n",
+        "UNION ALL\r\n",
+        "SELECT\r\n",
+        "  'sensor',\r\n",
+        "  'valid',\r\n",
+        "  count(*)\r\n",
+        "FROM\r\n",
+        "  IDENTIFIER(:catalog_name || '.' || :schema_name || '.valid_sensor')\r\n",
+        "UNION ALL\r\n",
+        "SELECT\r\n",
+        "  'sensor',\r\n",
+        "  'quarantine',\r\n",
+        "  count(*)\r\n",
+        "FROM\r\n",
+        "  IDENTIFIER(:catalog_name || '.' || :schema_name || '.quarantine_sensor')"
+      ],
+      "parameters": [
+        {
+          "displayName": "Catalog",
+          "keyword": "catalog_name",
+          "dataType": "STRING",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "workspace"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "Schema",
+          "keyword": "schema_name",
+          "dataType": "STRING",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "silver"
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "catalog": "workspace",
+      "schema": "silver"
+    },
+    {
+      "name": "45815fe5",
+      "displayName": "passrate",
+      "queryLines": [
+        "SELECT dataset, round(100.0 * valid / (valid + quarantine), 2) AS pass_rate_pct\r\n",
+        "FROM (\r\n",
+        "  SELECT 'prices' AS dataset,\r\n",
+        "    (SELECT count(*) FROM IDENTIFIER(:catalog || '.' || :schema || '.valid_prices'))      AS valid,\r\n",
+        "    (SELECT count(*) FROM IDENTIFIER(:catalog || '.' || :schema || '.quarantine_prices')) AS quarantine\r\n",
+        "  UNION ALL\r\n",
+        "  SELECT 'sensor',\r\n",
+        "    (SELECT count(*) FROM IDENTIFIER(:catalog || '.' || :schema || '.valid_sensor')),\r\n",
+        "    (SELECT count(*) FROM IDENTIFIER(:catalog || '.' || :schema || '.quarantine_sensor'))\r\n",
+        ")"
+      ],
+      "parameters": [
+        {
+          "displayName": "catalog",
+          "keyword": "catalog",
+          "dataType": "STRING",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "workspace"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "schema",
+          "keyword": "schema",
+          "dataType": "STRING",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "silver"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "abb0ef79",
+      "displayName": "data_freshness",
+      "queryLines": [
+        "SELECT 'prices' AS dataset, max(silver_processed_ts) AS last_processed\r\n",
+        "FROM IDENTIFIER(:catalog || '.' || :schema || '.valid_prices')\r\n",
+        "UNION ALL\r\n",
+        "SELECT 'sensor', max(timestamp_utc)\r\n",
+        "FROM IDENTIFIER(:catalog || '.' || :schema || '.valid_sensor')"
+      ],
+      "parameters": [
+        {
+          "displayName": "catalog",
+          "keyword": "catalog",
+          "dataType": "STRING",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "workspace"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "schema",
+          "keyword": "schema",
+          "dataType": "STRING",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "silver"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "relationshipGraphs": [
+    {
+      "sources": [
+        {
+          "name": "quarantine_prices",
+          "datasetName": "c706f5df"
+        },
+        {
+          "name": "quarantine_sensor",
+          "datasetName": "a29cac55"
+        },
+        {
+          "name": "valid_prices",
+          "datasetName": "6b5aa146"
+        },
+        {
+          "name": "valid_sensor",
+          "datasetName": "7f546b6f"
+        },
+        {
+          "name": "reconciliation_results",
+          "datasetName": "22df3642"
+        },
+        {
+          "name": "Untitled_dataset",
+          "datasetName": "5bf2eefe"
+        },
+        {
+          "name": "Untitled_dataset_1",
+          "datasetName": "45815fe5"
+        },
+        {
+          "name": "Untitled_dataset_2",
+          "datasetName": "abb0ef79"
+        }
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "fe754987",
+      "displayName": "Quality",
+      "layout": [
+        {
+          "widget": {
+            "name": "valid-vs-quarantine",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "fields": [
+                    {
+                      "name": "Untitled_dataset__status",
+                      "expression": "`Untitled_dataset`.`status`"
+                    },
+                    {
+                      "name": "Untitled_dataset__dataset",
+                      "expression": "`Untitled_dataset`.`dataset`"
+                    },
+                    {
+                      "name": "Untitled_dataset__n",
+                      "expression": "`Untitled_dataset`.`n`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Valid vs quarantine",
+                  "fields": []
+                }
+              },
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "Untitled_dataset__dataset",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "fieldName": "Untitled_dataset__n",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "Untitled_dataset__status",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 12,
+            "height": 8
+          }
+        },
+        {
+          "widget": {
+            "name": "prices-pass-rate-percent",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "fields": [
+                    {
+                      "name": "sum(Untitled_dataset_1__pass_rate_pct)",
+                      "expression": "SUM(`Untitled_dataset_1`.`pass_rate_pct`)"
+                    }
+                  ],
+                  "filters": [
+                    {
+                      "expression": "`Untitled_dataset_1`.`dataset` IN ('prices')"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Prices pass rate %",
+                  "fields": []
+                }
+              },
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(Untitled_dataset_1__pass_rate_pct)"
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 0,
+            "width": 2,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "aacfa98a",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "fields": [
+                    {
+                      "name": "sum(Untitled_dataset_1__pass_rate_pct)",
+                      "expression": "SUM(`Untitled_dataset_1`.`pass_rate_pct`)"
+                    }
+                  ],
+                  "filters": [
+                    {
+                      "expression": "`Untitled_dataset_1`.`dataset` IN ('sensor')"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Sensor pass rate %",
+                  "fields": []
+                }
+              },
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(Untitled_dataset_1__pass_rate_pct)"
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 0,
+            "width": 2,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "last-processed",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "fields": [
+                    {
+                      "name": "minutely(Untitled_dataset_2__last_processed)",
+                      "expression": "DATE_TRUNC(\"MINUTE\", `Untitled_dataset_2`.`last_processed`)"
+                    }
+                  ],
+                  "disaggregated": false,
+                  "orders": [
+                    {
+                      "direction": "DESC",
+                      "expression": "DATE_TRUNC(\"MINUTE\", `Untitled_dataset_2`.`last_processed`)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Last Processed",
+                  "fields": []
+                }
+              },
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "period": {
+                  "fieldName": "minutely(Untitled_dataset_2__last_processed)",
+                  "style": {
+                    "fontWeight": 600,
+                    "fontStyle": "normal"
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 4,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "reconciliation-table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "fields": [
+                    {
+                      "name": "reconciliation_results__reconciliation_date",
+                      "expression": "`reconciliation_results`.`reconciliation_date`"
+                    },
+                    {
+                      "name": "reconciliation_results__status",
+                      "expression": "`reconciliation_results`.`status`"
+                    },
+                    {
+                      "name": "reconciliation_results__bronze_count",
+                      "expression": "`reconciliation_results`.`bronze_count`"
+                    },
+                    {
+                      "name": "reconciliation_results__quarantine_count",
+                      "expression": "`reconciliation_results`.`quarantine_count`"
+                    },
+                    {
+                      "name": "reconciliation_results__valid_count",
+                      "expression": "`reconciliation_results`.`valid_count`"
+                    },
+                    {
+                      "name": "reconciliation_results__check_name",
+                      "expression": "`reconciliation_results`.`check_name`"
+                    },
+                    {
+                      "name": "reconciliation_results__message",
+                      "expression": "`reconciliation_results`.`message`"
+                    }
+                  ],
+                  "disaggregated": true,
+                  "orders": [
+                    {
+                      "direction": "DESC",
+                      "expression": "`reconciliation_results`.`reconciliation_date`"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Reconciliation Table",
+                  "fields": []
+                }
+              },
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "reconciliation_results__reconciliation_date",
+                    "displayName": "Reconciliation Date"
+                  },
+                  {
+                    "fieldName": "reconciliation_results__status",
+                    "displayName": "Status"
+                  },
+                  {
+                    "fieldName": "reconciliation_results__bronze_count",
+                    "displayName": "Bronze Count"
+                  },
+                  {
+                    "fieldName": "reconciliation_results__quarantine_count",
+                    "displayName": "Quarantine Count"
+                  },
+                  {
+                    "fieldName": "reconciliation_results__valid_count",
+                    "displayName": "Valid Count"
+                  },
+                  {
+                    "fieldName": "reconciliation_results__check_name",
+                    "displayName": "Check Name"
+                  },
+                  {
+                    "fieldName": "reconciliation_results__message",
+                    "displayName": "Message"
+                  }
+                ],
+                "rowOrder": [
+                  {
+                    "by": "column-reversed",
+                    "field": {
+                      "index": 0
+                    }
+                  }
+                ]
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 10,
+            "width": 12,
+            "height": 6
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1"
+    },
+    {
+      "name": "7e5de854",
+      "displayName": "Global Filters",
+      "layout": [
+        {
+          "widget": {
+            "name": "ef25194e",
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-single-select",
+              "encodings": {},
+              "frame": {
+                "showTitle": true
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 1,
+            "height": 2
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_GLOBAL_FILTERS",
+      "layoutVersion": "GRID_V1"
+    }
+  ],
+  "uiSettings": {
+    "theme": {
+      "widgetHeaderAlignment": "ALIGNMENT_UNSPECIFIED"
+    },
+    "applyModeEnabled": false
+  }
+}
