@@ -61,10 +61,10 @@ prices_checks = [
 
     # validity
     {"criticality": "error", "check": {"function": "is_not_less_than", "arguments": {"column": "price", "limit": 0}}},
-    {"criticality": "error", "check": {"function": "is_in_list",
-        "arguments": {"column": "bidding_zone", "allowed": ["PL","DE_LU","FR","ES","CZ","SK","LT","PT"]}}},
-    {"criticality": "warn",  "check": {"function": "is_in_list", "arguments": {"column": "currency", "allowed": ["EUR"]}}},
-    {"criticality": "warn",  "check": {"function": "is_in_list", "arguments": {"column": "unit", "allowed": ["MWH"]}}},
+    {"criticality": "error", "check": {"function": "is_in_list", "arguments": {"column": "bidding_zone",
+                  "allowed": ["'PL'","'DE_LU'","'FR'","'ES'","'CZ'","'SK'","'LT'","'PT'"]}}},
+    {"criticality": "warn", "check": {"function": "is_in_list", "arguments": {"column": "currency", "allowed": ["'EUR'"]}}},
+    {"criticality": "warn", "check": {"function": "is_in_list", "arguments": {"column": "unit", "allowed": ["'MWH'"]}}},
 
     # uniqueness (dataset-level): one price per zone and timestamp_utc
     {"criticality": "error", "check": {"function": "is_unique", "arguments": {"columns": ["bidding_zone", "timestamp_utc"]}}},

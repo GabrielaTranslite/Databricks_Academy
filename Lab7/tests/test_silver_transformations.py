@@ -53,7 +53,7 @@ def test_null_measurements_propagate_without_being_reinterpreted(spark_session):
     assert result.unit is None
     assert result.source_file is None
     assert result.ingestion_ts is None
-    assert result.silver_processed_ts is None
+
 
 def test_invalid_timestamp_strings_become_null(spark_session):
     """Checks if values such as not a timestamp do not cause unexpected values"""
@@ -65,7 +65,7 @@ def test_invalid_timestamp_strings_become_null(spark_session):
 
     assert result.timestamp_utc is None
     assert result.ingestion_ts is None
-    assert result.silver_processed_ts is None
+
 
 def test_empty_input_keeps_schema_and_has_no_rows(spark_session):
     """Tests if the function behaves correctly with zero rows"""
@@ -98,7 +98,11 @@ def test_output_schema_types(spark_session):
     out = clean_prices(make_input(spark_session)).schema
     assert out["price"].dataType == T.DecimalType(10, 2)
     assert isinstance(out["timestamp_utc"].dataType, T.TimestampType)
-
+    
+def test_silver_processed_ts_is_always_set(spark_session):
+    """silver_processed_ts is generated at silver, so it is always present."""
+    r = get_result(spark_session)
+    assert r.silver_processed_ts is not None
 
 # --- clean_sensor -----------------------------------------------------------
 
