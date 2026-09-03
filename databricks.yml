@@ -138,8 +138,12 @@ targets:
             - task_key: run_pipeline
               depends_on:
                 - task_key: generate_bronze
+              # dev bronze is regenerated with OVERWRITE each run, which breaks streaming reads;
+              # full refresh gives the pipeline a fresh checkpoint so it reprocesses cleanly.
+              timeout_seconds: 3600
               pipeline_task:
                 pipeline_id: ${resources.pipelines.entsoe_silver_ldp.id}
+                full_refresh: true
             # dim_date is generated from a date range (no fact scan), so it only needs the gold schema to exist.
             - task_key: build_dim_date
               depends_on:
