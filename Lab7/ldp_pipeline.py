@@ -86,8 +86,7 @@ sensor_checks = [
     {"criticality": "error", "check": {"function": "is_in_range", "arguments": {"column": "pue", "min_limit": 1.0, "max_limit": 3.0}}},
     {"criticality": "error", "check": {"function": "is_not_less_than", "arguments": {"column": "consumption_kwh", "limit": 0}}},
     {"criticality": "warn",  "check": {"function": "is_not_less_than", "arguments": {"column": "avg_power_kw", "limit": 0}}},
-    {"criticality": "error", "check": {"function": "is_in_list",
-        "arguments": {"column": "bidding_zone", "allowed": ["PL","DE_LU","FR","ES","CZ","SK","LT","PT"]}}},
+    {"criticality": "error", "check": {"function": "is_in_list", "arguments": {"column": "bidding_zone","allowed": ["'PL'","'DE_LU'","'FR'","'ES'","'CZ'","'SK'","'LT'","'PT'"]}}},
 
     # consistency (cross-column, SQL): if there is consumption, there must be power draw
     {"criticality": "warn", "check": {"function": "sql_expression",
