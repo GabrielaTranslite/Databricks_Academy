@@ -14,7 +14,7 @@ def clean_prices(df):
         # Convert timestamps from string to timestamp, invalid values become null
         .withColumn("timestamp_utc",       F.try_to_timestamp("timestamp_utc"))
         .withColumn("ingestion_ts",        F.try_to_timestamp("ingestion_ts"))
-        .withColumn("silver_processed_ts", F.try_to_timestamp("silver_processed_ts"))
+        .withColumn("silver_processed_ts", F.current_timestamp())
     )
 
 

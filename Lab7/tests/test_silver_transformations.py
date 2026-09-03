@@ -13,8 +13,7 @@ INPUT_SCHEMA = T.StructType([
     T.StructField("currency", T.StringType(), True),
     T.StructField("unit", T.StringType(), True),
     T.StructField("source_file", T.StringType(), True),
-    T.StructField("ingestion_ts", T.StringType(), True),
-    T.StructField("silver_processed_ts", T.StringType(), True)
+    T.StructField("ingestion_ts", T.StringType(), True)
 ])
 
 def make_input(spark_session, **overrides):
@@ -46,8 +45,7 @@ def test_null_measurements_propagate_without_being_reinterpreted(spark_session):
         currency=None,
         unit=None,
         source_file=None,
-        ingestion_ts=None,
-        silver_processed_ts=None
+        ingestion_ts=None
     )
 
     assert result.timestamp_utc is None
@@ -62,8 +60,7 @@ def test_invalid_timestamp_strings_become_null(spark_session):
     result = get_result(
         spark_session,
         timestamp_utc="not-a-timestamp",
-        ingestion_ts="2026-99-99T99:99:99Z",
-        silver_processed_ts="",
+        ingestion_ts="2026-99-99T99:99:99Z"
     )
 
     assert result.timestamp_utc is None
