@@ -262,6 +262,51 @@
           }
         }
       ]
+    },
+    {
+      "name": "b67765f0",
+      "displayName": "latest_reconciliation",
+      "queryLines": [
+        "WITH r AS (\r\n",
+        "  SELECT * FROM IDENTIFIER(:catalog || '.' || :schema || '.reconciliation_results')\r\n",
+        ")\r\n",
+        "SELECT check_name, status\r\n",
+        "FROM r\r\n",
+        "WHERE reconciliation_date = (SELECT max(reconciliation_date) FROM r)\r\n",
+        "ORDER BY check_name"
+      ],
+      "parameters": [
+        {
+          "displayName": "catalog",
+          "keyword": "catalog",
+          "dataType": "STRING",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "workspace"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "schema",
+          "keyword": "schema",
+          "dataType": "STRING",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "silver"
+                }
+              ]
+            }
+          }
+        }
+      ]
     }
   ],
   "relationshipGraphs": [
@@ -298,6 +343,10 @@
         {
           "name": "Untitled_dataset_2",
           "datasetName": "abb0ef79"
+        },
+        {
+          "name": "Untitled_dataset_3",
+          "datasetName": "b67765f0"
         }
       ]
     }
@@ -644,12 +693,12 @@
                 "query": {
                   "fields": [
                     {
-                      "name": "reconciliation_results__check_name",
-                      "expression": "`reconciliation_results`.`check_name`"
+                      "name": "Untitled_dataset_3__check_name",
+                      "expression": "`Untitled_dataset_3`.`check_name`"
                     },
                     {
-                      "name": "reconciliation_results__status",
-                      "expression": "`reconciliation_results`.`status`"
+                      "name": "Untitled_dataset_3__status",
+                      "expression": "`Untitled_dataset_3`.`status`"
                     }
                   ],
                   "cubeGroupingSets": {
@@ -657,7 +706,7 @@
                       {},
                       {
                         "fieldNames": [
-                          "reconciliation_results__check_name"
+                          "Untitled_dataset_3__check_name"
                         ]
                       }
                     ]
@@ -666,7 +715,7 @@
                   "orders": [
                     {
                       "direction": "ASC",
-                      "expression": "`reconciliation_results`.`check_name`"
+                      "expression": "`Untitled_dataset_3`.`check_name`"
                     }
                   ]
                 }
@@ -686,7 +735,7 @@
                 "columns": {
                   "fields": [
                     {
-                      "fieldName": "reconciliation_results__check_name",
+                      "fieldName": "Untitled_dataset_3__check_name",
                       "displayName": "Check Name",
                       "scale": {
                         "type": "categorical",
@@ -729,7 +778,7 @@
                 "cells": {
                   "fields": [
                     {
-                      "fieldName": "reconciliation_results__status",
+                      "fieldName": "Untitled_dataset_3__status",
                       "cellType": "text",
                       "style": {
                         "type": "basic",
