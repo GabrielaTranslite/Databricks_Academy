@@ -270,7 +270,7 @@
         "WITH r AS (\r\n",
         "  SELECT * FROM IDENTIFIER(:catalog || '.' || :schema || '.reconciliation_results')\r\n",
         ")\r\n",
-        "SELECT check_name, status\r\n",
+        "SELECT check_name, status, from_utc_timestamp(reconciliation_date, 'Europe/Warsaw') AS reconciliation_date\r\n",
         "FROM r\r\n",
         "WHERE reconciliation_date = (SELECT max(reconciliation_date) FROM r)\r\n",
         "ORDER BY check_name"
@@ -530,15 +530,15 @@
                 "query": {
                   "fields": [
                     {
-                      "name": "minutely(reconciliation_results__reconciliation_date)",
-                      "expression": "DATE_TRUNC(\"MINUTE\", `reconciliation_results`.`reconciliation_date`)"
+                      "name": "minutely(Untitled_dataset_3__reconciliation_date)",
+                      "expression": "DATE_TRUNC(\"MINUTE\", `Untitled_dataset_3`.`reconciliation_date`)"
                     }
                   ],
                   "disaggregated": false,
                   "orders": [
                     {
                       "direction": "DESC",
-                      "expression": "DATE_TRUNC(\"MINUTE\", `reconciliation_results`.`reconciliation_date`)"
+                      "expression": "DATE_TRUNC(\"MINUTE\", `Untitled_dataset_3`.`reconciliation_date`)"
                     }
                   ]
                 }
@@ -556,7 +556,7 @@
               "widgetType": "counter",
               "encodings": {
                 "period": {
-                  "fieldName": "minutely(reconciliation_results__reconciliation_date)",
+                  "fieldName": "minutely(Untitled_dataset_3__reconciliation_date)",
                   "style": {
                     "fontWeight": 600,
                     "fontStyle": "normal"
