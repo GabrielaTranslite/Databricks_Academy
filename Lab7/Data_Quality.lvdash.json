@@ -164,7 +164,15 @@
       "name": "cb161467",
       "displayName": "reconciliation_results_id",
       "queryLines": [
-        "SELECT * FROM IDENTIFIER(:catalog || '.' || :schema || '.reconciliation_results')"
+        "SELECT\r\n",
+        "  from_utc_timestamp(reconciliation_date, 'Europe/Warsaw') AS reconciliation_date,\r\n",
+        "  check_name,\r\n",
+        "  status,\r\n",
+        "  message,\r\n",
+        "  bronze_count,\r\n",
+        "  valid_count,\r\n",
+        "  quarantine_count\r\n",
+        "FROM IDENTIFIER(:catalog || '.' || :schema || '.reconciliation_results')"
       ],
       "parameters": [
         {
