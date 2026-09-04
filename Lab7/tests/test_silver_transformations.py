@@ -102,7 +102,7 @@ def test_output_schema_types(spark_session):
 def test_silver_processed_ts_is_always_set(spark_session):
     """silver_processed_ts is generated at silver, so it is always present."""
     r = get_result(spark_session)
-    assert r.silver_processed_ts is not None
+    assert r.silver_processed_ts is not Done
 
 # --- clean_sensor -----------------------------------------------------------
 
