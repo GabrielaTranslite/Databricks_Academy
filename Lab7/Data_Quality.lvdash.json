@@ -1,111 +1,6 @@
 {
   "datasets": [
     {
-      "name": "a29cac55",
-      "displayName": "quarantine_sensor",
-      "config": {
-        "version": "1.1",
-        "source": "workspace.silver.quarantine_sensor",
-        "dimensions": [
-          {
-            "expr": "source.*"
-          }
-        ],
-        "measures": [
-          {
-            "name": "count",
-            "expr": "COUNT(*)",
-            "comment": "Represents the total number of rows in the dataset. Use this measure to count all",
-            "displayName": "Count"
-          }
-        ]
-      }
-    },
-    {
-      "name": "6b5aa146",
-      "displayName": "valid_prices",
-      "config": {
-        "version": "1.1",
-        "source": "workspace.silver.valid_prices",
-        "dimensions": [
-          {
-            "expr": "source.*"
-          }
-        ],
-        "measures": [
-          {
-            "name": "count",
-            "expr": "COUNT(*)",
-            "comment": "Represents the total number of rows in the dataset. Use this measure to count all",
-            "displayName": "Count"
-          }
-        ]
-      }
-    },
-    {
-      "name": "c706f5df",
-      "displayName": "quarantine_prices",
-      "config": {
-        "version": "1.1",
-        "source": "workspace.silver.quarantine_prices",
-        "dimensions": [
-          {
-            "expr": "source.*"
-          }
-        ],
-        "measures": [
-          {
-            "name": "count",
-            "expr": "COUNT(*)",
-            "comment": "Represents the total number of rows in the dataset. Use this measure to count all",
-            "displayName": "Count"
-          }
-        ]
-      }
-    },
-    {
-      "name": "7f546b6f",
-      "displayName": "valid_sensor",
-      "config": {
-        "version": "1.1",
-        "source": "workspace.silver.valid_sensor",
-        "dimensions": [
-          {
-            "expr": "source.*"
-          }
-        ],
-        "measures": [
-          {
-            "name": "count",
-            "expr": "COUNT(*)",
-            "comment": "Represents the total number of rows in the dataset. Use this measure to count all",
-            "displayName": "Count"
-          }
-        ]
-      }
-    },
-    {
-      "name": "22df3642",
-      "displayName": "reconciliation_results",
-      "config": {
-        "version": "1.1",
-        "source": "workspace.silver.reconciliation_results",
-        "dimensions": [
-          {
-            "expr": "source.*"
-          }
-        ],
-        "measures": [
-          {
-            "name": "count",
-            "expr": "COUNT(*)",
-            "comment": "Represents the total number of rows in the dataset. Use this measure to count all",
-            "displayName": "Count"
-          }
-        ]
-      }
-    },
-    {
       "name": "5bf2eefe",
       "displayName": "data_quality_summary",
       "queryLines": [
@@ -221,49 +116,6 @@
       ]
     },
     {
-      "name": "abb0ef79",
-      "displayName": "data_freshness",
-      "queryLines": [
-        "SELECT 'prices' AS dataset, max(silver_processed_ts) AS last_processed\r\n",
-        "FROM IDENTIFIER(:catalog || '.' || :schema || '.valid_prices')\r\n",
-        "UNION ALL\r\n",
-        "SELECT 'sensor', max(timestamp_utc)\r\n",
-        "FROM IDENTIFIER(:catalog || '.' || :schema || '.valid_sensor')"
-      ],
-      "parameters": [
-        {
-          "displayName": "catalog",
-          "keyword": "catalog",
-          "dataType": "STRING",
-          "defaultSelection": {
-            "values": {
-              "dataType": "STRING",
-              "values": [
-                {
-                  "value": "workspace"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "displayName": "schema",
-          "keyword": "schema",
-          "dataType": "STRING",
-          "defaultSelection": {
-            "values": {
-              "dataType": "STRING",
-              "values": [
-                {
-                  "value": "silver"
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
       "name": "b67765f0",
       "displayName": "latest_reconciliation",
       "queryLines": [
@@ -307,31 +159,50 @@
           }
         }
       ]
+    },
+    {
+      "name": "cb161467",
+      "displayName": "reconciliation_results_id",
+      "queryLines": [
+        "SELECT * FROM IDENTIFIER(:catalog || '.' || :schema || '.reconciliation_results')"
+      ],
+      "parameters": [
+        {
+          "displayName": "catalog",
+          "keyword": "catalog",
+          "dataType": "STRING",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "workspace"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "schema",
+          "keyword": "schema",
+          "dataType": "STRING",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "silver"
+                }
+              ]
+            }
+          }
+        }
+      ]
     }
   ],
   "relationshipGraphs": [
     {
       "sources": [
-        {
-          "name": "quarantine_prices",
-          "datasetName": "c706f5df"
-        },
-        {
-          "name": "quarantine_sensor",
-          "datasetName": "a29cac55"
-        },
-        {
-          "name": "valid_prices",
-          "datasetName": "6b5aa146"
-        },
-        {
-          "name": "valid_sensor",
-          "datasetName": "7f546b6f"
-        },
-        {
-          "name": "reconciliation_results",
-          "datasetName": "22df3642"
-        },
         {
           "name": "Untitled_dataset",
           "datasetName": "5bf2eefe"
@@ -341,12 +212,12 @@
           "datasetName": "45815fe5"
         },
         {
-          "name": "Untitled_dataset_2",
-          "datasetName": "abb0ef79"
-        },
-        {
           "name": "Untitled_dataset_3",
           "datasetName": "b67765f0"
+        },
+        {
+          "name": "Untitled_dataset_8",
+          "datasetName": "cb161467"
         }
       ]
     }
@@ -584,39 +455,39 @@
                 "query": {
                   "fields": [
                     {
-                      "name": "reconciliation_results__reconciliation_date",
-                      "expression": "`reconciliation_results`.`reconciliation_date`"
+                      "name": "Untitled_dataset_8__reconciliation_date",
+                      "expression": "`Untitled_dataset_8`.`reconciliation_date`"
                     },
                     {
-                      "name": "reconciliation_results__status",
-                      "expression": "`reconciliation_results`.`status`"
+                      "name": "Untitled_dataset_8__status",
+                      "expression": "`Untitled_dataset_8`.`status`"
                     },
                     {
-                      "name": "reconciliation_results__bronze_count",
-                      "expression": "`reconciliation_results`.`bronze_count`"
+                      "name": "Untitled_dataset_8__bronze_count",
+                      "expression": "`Untitled_dataset_8`.`bronze_count`"
                     },
                     {
-                      "name": "reconciliation_results__quarantine_count",
-                      "expression": "`reconciliation_results`.`quarantine_count`"
+                      "name": "Untitled_dataset_8__quarantine_count",
+                      "expression": "`Untitled_dataset_8`.`quarantine_count`"
                     },
                     {
-                      "name": "reconciliation_results__valid_count",
-                      "expression": "`reconciliation_results`.`valid_count`"
+                      "name": "Untitled_dataset_8__valid_count",
+                      "expression": "`Untitled_dataset_8`.`valid_count`"
                     },
                     {
-                      "name": "reconciliation_results__check_name",
-                      "expression": "`reconciliation_results`.`check_name`"
+                      "name": "Untitled_dataset_8__check_name",
+                      "expression": "`Untitled_dataset_8`.`check_name`"
                     },
                     {
-                      "name": "reconciliation_results__message",
-                      "expression": "`reconciliation_results`.`message`"
+                      "name": "Untitled_dataset_8__message",
+                      "expression": "`Untitled_dataset_8`.`message`"
                     }
                   ],
                   "disaggregated": true,
                   "orders": [
                     {
                       "direction": "DESC",
-                      "expression": "`reconciliation_results`.`reconciliation_date`"
+                      "expression": "`Untitled_dataset_8`.`reconciliation_date`"
                     }
                   ]
                 }
@@ -635,31 +506,31 @@
               "encodings": {
                 "columns": [
                   {
-                    "fieldName": "reconciliation_results__reconciliation_date",
+                    "fieldName": "Untitled_dataset_8__reconciliation_date",
                     "displayName": "Reconciliation Date"
                   },
                   {
-                    "fieldName": "reconciliation_results__status",
+                    "fieldName": "Untitled_dataset_8__status",
                     "displayName": "Status"
                   },
                   {
-                    "fieldName": "reconciliation_results__bronze_count",
+                    "fieldName": "Untitled_dataset_8__bronze_count",
                     "displayName": "Bronze Count"
                   },
                   {
-                    "fieldName": "reconciliation_results__quarantine_count",
+                    "fieldName": "Untitled_dataset_8__quarantine_count",
                     "displayName": "Quarantine Count"
                   },
                   {
-                    "fieldName": "reconciliation_results__valid_count",
+                    "fieldName": "Untitled_dataset_8__valid_count",
                     "displayName": "Valid Count"
                   },
                   {
-                    "fieldName": "reconciliation_results__check_name",
+                    "fieldName": "Untitled_dataset_8__check_name",
                     "displayName": "Check Name"
                   },
                   {
-                    "fieldName": "reconciliation_results__message",
+                    "fieldName": "Untitled_dataset_8__message",
                     "displayName": "Message"
                   }
                 ],
