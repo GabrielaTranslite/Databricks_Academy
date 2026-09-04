@@ -46,7 +46,7 @@ variables:
     default: "2026-12-31"
   warehouse_id:
     description: SQL warehouse id for the DQ dashboard refresh (set per target once the dashboard is wired).
-    default: ""          # empty until you wire the dashboard; only used by the (commented) dashboard blocks
+    default: ""
 sync:
   exclude:
     - "*.dbc"
@@ -103,21 +103,14 @@ targets:
       bronze_schema: bronze
       silver_schema: silver
       gold_schema: gold
+      warehouse_id: ba25c68220f8a0ce
     resources:
-      # --- Lab 7 DQ dashboard (commented until wired; see the 3 steps below) ---
-      # TO ENABLE the dashboard refresh task in gold_dim_job:
-      #   1. In Databricks open your DQ dashboard -> File -> Export -> save it as
-      #      ./Lab7/dq_dashboard.lvdash.json inside the repo.
-      #   2. Put your dev SQL warehouse id in dev.variables.warehouse_id below
-      #      (Databricks -> SQL Warehouses -> your warehouse -> copy the ID).
-      #   3. Uncomment this "dashboards" block AND the refresh_dashboard task in
-      #      gold_dim_job, then: databricks bundle deploy -t dev.
-      # dashboards:
-      #   dq_dashboard:
-      #     display_name: "ENTSO-E Data Quality"
-      #     file_path: ./Lab7/dq_dashboard.lvdash.json
-      #     warehouse_id: ${var.warehouse_id}
-      #     dataset_catalog: ${var.catalog}
+      dashboards:
+        dq_dashboard:
+          display_name: "ENTSO-E Data Quality"
+          file_path: ./Lab7/Data_Quality.lvdash.json
+          warehouse_id: ${var.warehouse_id}
+          dataset_catalog: ${var.catalog}
       jobs:
         tests_job:
           name: entsoe-unit-tests-dev
@@ -173,13 +166,12 @@ targets:
                   silver_schema: ${var.silver_schema}
                   dim_date_start: ${var.dim_date_start}
                   dim_date_end: ${var.dim_date_end}
-            # --- Refresh the DQ dashboard after data is rebuilt (uncomment with the dashboards block above) ---
-            # - task_key: refresh_dashboard
-            #   depends_on:
-            #     - task_key: build_dim_date
-            #   dashboard_task:
-            #     dashboard_id: ${resources.dashboards.dq_dashboard.id}
-            #     warehouse_id: ${var.warehouse_id}
+            - task_key: refresh_dashboard
+              depends_on:
+                - task_key: build_dim_date
+              dashboard_task:
+                dashboard_id: ${resources.dashboards.dq_dashboard.id}
+                warehouse_id: ${var.warehouse_id}
 
         silver_pipeline:
           name: entsoe-silver-pipeline-dev

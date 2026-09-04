@@ -33,3 +33,12 @@ Two forms, both "no IDE":
 - On-platform, as a bundle job (runs on serverless, triggered from the CLI):
 
 ![alt text](image-3.png)
+
+
+
+Test CI
+Gate is working properly:
+![alt text](image-6.png)
+
+Gate blocking the merge:
+![alt text](image-5.png)
