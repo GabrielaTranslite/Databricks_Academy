@@ -46,6 +46,7 @@ variables:
     default: "2026-12-31"
   warehouse_id:
     description: SQL warehouse id for the DQ dashboard refresh (set per target once the dashboard is wired).
+    default: ""          # empty until you wire the dashboard; only used by the (commented) dashboard blocks
 sync:
   exclude:
     - "*.dbc"
