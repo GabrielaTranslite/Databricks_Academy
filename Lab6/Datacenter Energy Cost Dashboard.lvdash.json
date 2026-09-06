@@ -268,48 +268,6 @@
         },
         {
           "widget": {
-            "name": "c1",
-            "queries": [
-              {
-                "name": "main_query",
-                "query": {
-                  "datasetName": "1093eea9",
-                  "fields": [
-                    {
-                      "name": "day_of_week_name",
-                      "expression": "`day_of_week_name`"
-                    }
-                  ],
-                  "disaggregated": true
-                }
-              }
-            ],
-            "spec": {
-              "version": 2,
-              "frame": {
-                "showTitle": true,
-                "title": "Day of the Week"
-              },
-              "widgetType": "counter",
-              "encodings": {
-                "value": {
-                  "fieldName": "day_of_week_name"
-                }
-              },
-              "data": {
-                "queryName": "main_query"
-              }
-            }
-          },
-          "position": {
-            "x": 1,
-            "y": 0,
-            "width": 1,
-            "height": 2
-          }
-        },
-        {
-          "widget": {
             "name": "8fa89a10",
             "queries": [
               {
@@ -394,13 +352,16 @@
               }
             ],
             "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Total Cost",
+                  "fields": []
+                }
+              },
               "version": 2,
               "sparkChart": {
                 "hide": true
-              },
-              "frame": {
-                "showTitle": true,
-                "title": "Total Cost"
               },
               "widgetType": "counter",
               "encodings": {
@@ -414,7 +375,7 @@
             }
           },
           "position": {
-            "x": 2,
+            "x": 1,
             "y": 0,
             "width": 1,
             "height": 2
@@ -459,7 +420,7 @@
             }
           },
           "position": {
-            "x": 3,
+            "x": 2,
             "y": 0,
             "width": 1,
             "height": 2
