@@ -111,6 +111,11 @@ targets:
           file_path: ./Lab7/Data_Quality.lvdash.json
           warehouse_id: ${var.warehouse_id}
           dataset_catalog: ${var.catalog}
+        datacenter_cost_dashboard:
+          display_name: "Datacenter Energy Cost"
+          file_path: "./Lab6/Datacenter Energy Cost Dashboard.lvdash.json"
+          warehouse_id: ${var.warehouse_id}
+          dataset_catalog: ${var.catalog}
       jobs:
         tests_job:
           name: entsoe-unit-tests-dev
@@ -166,9 +171,29 @@ targets:
                   silver_schema: ${var.silver_schema}
                   dim_date_start: ${var.dim_date_start}
                   dim_date_end: ${var.dim_date_end}
-            - task_key: refresh_dashboard
+
+            # Branch 1: refresh the Lab 6 cost dashboard once gold is built.
+            - task_key: refresh_datacenter_dashboard
               depends_on:
                 - task_key: build_dim_date
+              dashboard_task:
+                dashboard_id: ${resources.dashboards.datacenter_cost_dashboard.id}
+                warehouse_id: ${var.warehouse_id}
+
+            # Branch 2: run reconciliation (writes reconciliation_results), then refresh the DQ dashboard.
+            - task_key: run_reconciliation
+              depends_on:
+                - task_key: build_dim_date
+              notebook_task:
+                notebook_path: ./Lab7/07_reconciliation.ipynb
+                base_parameters:
+                  catalog: ${var.catalog}
+                  bronze_schema: ${var.bronze_schema}
+                  silver_schema: ${var.silver_schema}
+                  gold_schema: ${var.gold_schema}
+            - task_key: refresh_dashboard
+              depends_on:
+                - task_key: run_reconciliation
               dashboard_task:
                 dashboard_id: ${resources.dashboards.dq_dashboard.id}
                 warehouse_id: ${var.warehouse_id}
