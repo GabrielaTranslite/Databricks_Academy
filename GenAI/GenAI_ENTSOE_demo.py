@@ -26,7 +26,7 @@
 
 # COMMAND ----------
 
-# MAGIC %pip install -U -qqq databricks-langchain databricks-vectorsearch databricks-agents "mlflow[databricks]" langgraph "unitycatalog-ai[databricks]" "unitycatalog-langchain[databricks]" langchain-openai
+# MAGIC %pip install -U -qqq databricks-langchain databricks-vectorsearch databricks-agents "mlflow[databricks]" "unitycatalog-ai[databricks]" "unitycatalog-langchain[databricks]"
 # MAGIC %restart_python
 
 # COMMAND ----------
@@ -94,7 +94,7 @@ print("UC functions created.")
 
 # COMMAND ----------
 
-# MAGIC %md Smoke-test the function with plain SQL (this is also nice to show live before the agent uses it).
+# MAGIC %md Smoke-test the function with plain SQL
 
 # COMMAND ----------
 
@@ -117,7 +117,7 @@ def chunk_markdown(path):
     """One row per '##' section; keeps the section heading with its text."""
     with open(path, "r", encoding="utf-8") as f:
         text = f.read()
-    doc = os.path.basename(os.path.dirname(path)) or os.path.basename(path)  # e.g. "Lab6"
+    doc = os.path.splitext(os.path.basename(path))[0].replace("README_", "").title()
     parts = re.split(r"\n(?=#{1,3}\s)", text)
     rows = []
     for i, part in enumerate(parts):
@@ -185,8 +185,14 @@ print("Index online:", VS_INDEX)
 
 # COMMAND ----------
 
+# DBTITLE 1,Cell 14
+# NOTE: Using a simplified agent implementation to avoid langgraph version incompatibility
+# The environment has langgraph 1.0.10 + langgraph-prebuilt 1.0.13 which are incompatible
+# This custom implementation provides the same interface without requiring langgraph.prebuilt
+
 from databricks_langchain import ChatDatabricks, UCFunctionToolkit, VectorSearchRetrieverTool
-from langgraph.prebuilt import create_react_agent
+from langchain_core.messages import SystemMessage, HumanMessage, AIMessage, ToolMessage
+from typing import Dict, List, Any
 
 llm = ChatDatabricks(endpoint=LLM_ENDPOINT, temperature=0.1)
 
@@ -203,6 +209,8 @@ rag_tool = VectorSearchRetrieverTool(
     tool_description="Search the project README documentation (how the pipeline, gold layer, governance, tests and alerts were built).",
 )
 
+tools = uc_tools + [rag_tool]
+
 SYSTEM_PROMPT = (
     "You are the ENTSO-E project assistant. "
     "For questions about numbers (cost, consumption, PUE, zones), call the SQL tools. "
@@ -210,7 +218,63 @@ SYSTEM_PROMPT = (
     "Always name the bidding zone and date range you used. If a zone is unknown, call list_bidding_zones first."
 )
 
-agent = create_react_agent(llm, tools=uc_tools + [rag_tool], prompt=SYSTEM_PROMPT)
+# Custom agent class that mimics langgraph's create_react_agent interface
+class SimpleReActAgent:
+    def __init__(self, llm, tools, system_prompt):
+        self.llm = llm.bind_tools(tools)  # Enable tool calling
+        self.tools_by_name = {t.name: t for t in tools}
+        self.system_prompt = system_prompt
+    
+    def stream(self, input_dict, stream_mode="values"):
+        """Stream agent responses, yielding message states."""
+        # Convert input messages to LangChain format
+        messages = [SystemMessage(content=self.system_prompt)]
+        for msg in input_dict["messages"]:
+            if isinstance(msg, dict):
+                role = msg.get("role")
+                content = msg.get("content", "")
+                if role == "user":
+                    messages.append(HumanMessage(content=content))
+                elif role == "assistant":
+                    messages.append(AIMessage(content=content))
+            else:
+                messages.append(msg)
+        
+        # Yield initial state with user message
+        yield {"messages": messages}
+        
+        max_iterations = 10
+        for _ in range(max_iterations):
+            # Get LLM response with tool calls
+            response = self.llm.invoke(messages)
+            messages.append(response)
+            yield {"messages": messages}
+            
+            # Check if we're done (no tool calls)
+            if not response.tool_calls:
+                break
+            
+            # Execute tool calls
+            for tool_call in response.tool_calls:
+                tool = self.tools_by_name.get(tool_call["name"])
+                if tool:
+                    try:
+                        result = tool.invoke(tool_call["args"])
+                        tool_msg = ToolMessage(
+                            content=str(result),
+                            tool_call_id=tool_call.get("id", ""),
+                            name=tool_call["name"]
+                        )
+                    except Exception as e:
+                        tool_msg = ToolMessage(
+                            content=f"Error: {str(e)}",
+                            tool_call_id=tool_call.get("id", ""),
+                            name=tool_call["name"]
+                        )
+                    messages.append(tool_msg)
+                    yield {"messages": messages}
+
+agent = SimpleReActAgent(llm, tools, SYSTEM_PROMPT)
 
 # COMMAND ----------
 
