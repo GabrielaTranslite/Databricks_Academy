@@ -1,4 +1,8 @@
 # Databricks notebook source
+# /// script
+# [tool.databricks.environment]
+# environment_version = "5"
+# ///
 # MAGIC %md
 # MAGIC # GenAI on Databricks with Mosaic AI - live demo on the ENTSO-E project
 # MAGIC
@@ -8,22 +12,21 @@
 # MAGIC 1. **SQL tool** - a Unity Catalog function over `gold.consumption_hourly` (numbers).
 # MAGIC 2. **RAG retriever** - a Vector Search index over the project `README` files (documentation).
 # MAGIC
-# MAGIC The punchline for the *Governance* slide: the SQL tool reads the same table that already carries
-# MAGIC row-level security (`regional_filter`) and a column mask (`site_id_mask`), so the agent inherits
+# MAGIC The SQL tool reads the same table that already carries row-level security (`regional_filter`) and a column mask (`site_id_mask`), so the agent inherits
 # MAGIC them with **zero extra access-control code**.
 # MAGIC
 # MAGIC > No-code counterpart already exists: your **Genie space** over the gold layer is the low-code agent.
-# MAGIC > This notebook is the same idea authored in code with the Mosaic AI Agent Framework.
+# MAGIC
 
 # COMMAND ----------
 
 # MAGIC %md
 # MAGIC ## 0. Config
-# MAGIC Everything hardcoded lives here so the notebook is portable across targets (dev = `workspace`, prod = `dbr_dev`).
+# MAGIC
 
 # COMMAND ----------
 
-# MAGIC %pip install -U -qqq databricks-langchain databricks-vectorsearch databricks-agents "mlflow[databricks]" langgraph "unitycatalog-ai[databricks]" "unitycatalog-langchain[databricks]"
+# MAGIC %pip install -U -qqq databricks-langchain databricks-vectorsearch databricks-agents "mlflow[databricks]" langgraph "unitycatalog-ai[databricks]" "unitycatalog-langchain[databricks]" langchain-openai
 # MAGIC %restart_python
 
 # COMMAND ----------
@@ -42,7 +45,7 @@ EMBEDDING_ENDPOINT = "databricks-gte-large-en"
 DOCS_TABLE   = f"{CATALOG}.{GOLD_SCHEMA}.project_docs"
 VS_ENDPOINT  = "entsoe_vs"                                   # Free Edition allows exactly 1
 VS_INDEX     = f"{CATALOG}.{GOLD_SCHEMA}.project_docs_index"
-DOCS_PATH    = "/Workspace/Repos/entsoe/Databricks_Academy"  # folder that holds the Lab*/README.md files
+DOCS_PATH    = "/Workspace/Repos/gabrielajaniszewska@translite.pl/Databricks_Academy/GenAI/docs"  # folder that holds the README.md files
 
 # Where to register + deploy the agent
 UC_MODEL     = f"{CATALOG}.{GOLD_SCHEMA}.entsoe_support_agent"
@@ -125,7 +128,7 @@ def chunk_markdown(path):
         rows.append(Row(doc_name=doc, section=heading[:200], content=part))
     return rows
 
-paths = glob.glob(os.path.join(DOCS_PATH, "Lab*/README.md"))
+paths = glob.glob(os.path.join(DOCS_PATH, "README*.md"))
 records = [r for p in paths for r in chunk_markdown(p)]
 
 # Fallback so the cell never hard-fails during a live demo if the path is off.
@@ -197,12 +200,11 @@ rag_tool = VectorSearchRetrieverTool(
     num_results=3,
     columns=["doc_name", "section", "content"],
     tool_name="search_project_docs",
-    tool_description="Search the project README documentation (how the pipeline, gold layer, "
-                     "governance, tests and alerts were built).",
+    tool_description="Search the project README documentation (how the pipeline, gold layer, governance, tests and alerts were built).",
 )
 
 SYSTEM_PROMPT = (
-    "You are the FreshBite / ENTSO-E project assistant. "
+    "You are the ENTSO-E project assistant. "
     "For questions about numbers (cost, consumption, PUE, zones), call the SQL tools. "
     "For questions about how something was built or configured, call search_project_docs. "
     "Always name the bidding zone and date range you used. If a zone is unknown, call list_bidding_zones first."
