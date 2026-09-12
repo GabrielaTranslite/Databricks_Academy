@@ -277,6 +277,7 @@ targets:
       bronze_schema: gabrielajaniszews786_bronze
       silver_schema: gabrielajaniszews786_silver
       gold_schema: gabrielajaniszews786_gold
+      warehouse_id: 3ed106620db591d9
     resources:
       pipelines:
         entsoe_silver_ldp:
@@ -290,6 +291,18 @@ targets:
               spark_conf:
                 spark.master: "local[*]"
                 spark.databricks.cluster.profile: "singleNode"
+      
+      dashboards:
+        dq_dashboard:
+          display_name: "ENTSO-E Data Quality"
+          file_path: ./Lab7/Data_Quality.lvdash.json
+          warehouse_id: ${var.warehouse_id}
+          dataset_catalog: ${var.catalog}
+        datacenter_cost_dashboard:
+          display_name: "Datacenter Energy Cost"
+          file_path: "./Lab6/Datacenter Energy Cost Dashboard.lvdash.json"
+          warehouse_id: ${var.warehouse_id}
+          dataset_catalog: ${var.catalog}
       jobs:
         tests_job:
           name: entsoe-unit-tests-prod
@@ -313,6 +326,7 @@ targets:
             - task_key: build_dim_date
               depends_on:
                 - task_key: run_pipeline
+              existing_cluster_id: ${var.prod_cluster_id}
               notebook_task:
                 notebook_path: ./Lab7/06_gold_dim_date.ipynb
                 base_parameters:
@@ -332,6 +346,7 @@ targets:
 
             # --- Bronze: prices from the ENTSO-E API, landed then Auto Loaded ---
             - task_key: fetch_prices
+              existing_cluster_id: ${var.prod_cluster_id}
               notebook_task:
                 notebook_path: ./Lab3/01_fetch_entsoe_prices_lab3.ipynb
                 base_parameters:
@@ -343,6 +358,7 @@ targets:
                   secret_key: gabriela-entsoe-token
 
             - task_key: autoloader_prices
+              existing_cluster_id: ${var.prod_cluster_id}
               depends_on:
                 - task_key: fetch_prices
               notebook_task:
@@ -355,6 +371,7 @@ targets:
             # NOTE: 03_fetch_sensor_streaming must be parameterized (widgets:
             #       eh_namespace, eh_name, secret_scope, secret_key) for these to apply.
             - task_key: ingest_sensor
+              existing_cluster_id: ${var.prod_cluster_id}
               notebook_task:
                 notebook_path: ./Lab3/03_fetch_sensor_streaming_lab3.ipynb
                 base_parameters:
@@ -367,6 +384,7 @@ targets:
 
             # --- Silver ---
             - task_key: silver_prices
+              existing_cluster_id: ${var.prod_cluster_id}
               depends_on:
                 - task_key: autoloader_prices
               notebook_task:
@@ -378,6 +396,7 @@ targets:
                   run_checks: "false"
 
             - task_key: silver_sensor
+              existing_cluster_id: ${var.prod_cluster_id}
               depends_on:
                 - task_key: ingest_sensor
               notebook_task:
@@ -389,6 +408,7 @@ targets:
                   run_checks: "false"
 
             - task_key: silver_dim
+              existing_cluster_id: ${var.prod_cluster_id}
               depends_on:
                 - task_key: ingest_sensor
               notebook_task:
