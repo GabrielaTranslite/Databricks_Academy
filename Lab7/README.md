@@ -146,3 +146,6 @@ On dev the pipeline runs with a full refresh, because the bronze generator overw
 run and a streaming read cannot follow an overwrite. On prod the sensor stream is real and append-only, so
 it stays incremental. Names in the dashboard and the reconciliation notebook are built from the catalog and
 schema parameters rather than hardcoded, so nothing points at the dev catalog when the code runs on prod.
+
+
+Small change for PR test
