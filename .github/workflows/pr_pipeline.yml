@@ -1,0 +1,41 @@
+name: PR pipeline
+
+# Runs on every pull request aimed at main.
+# Two gates that must pass before a merge is allowed:
+#   1. unit-tests -> the code is correct
+#   2. validate   -> the bundle config is correct and its variables resolve
+# Nothing is deployed here. This is the safety net BEFORE prod.
+
+on:
+  pull_request:
+    branches: [ main ]
+
+# Least privilege: this workflow only needs to read the repository.
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install test dependencies
+        run: pip install "pyspark==4.0.*" pytest
+      - name: Run unit tests
+        working-directory: Lab7
+        run: pytest -q
+
+  validate:
+    runs-on: ubuntu-latest
+    # Only this job talks to Databricks, so only this job gets the secrets.
+    env:
+      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: databricks/setup-cli@main
+      - name: Validate the prod bundle
+        run: databricks bundle validate -t prod

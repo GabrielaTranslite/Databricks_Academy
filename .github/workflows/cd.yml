@@ -1,0 +1,33 @@
+name: CD deploy to prod
+
+# Runs only AFTER a merge (a push) to main.
+# By this point the PR checks above have already passed, so this job just ships.
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+# Never let two prod deploys run at once. If a newer merge lands mid-deploy,
+# cancel the older run so prod always converges to the latest main.
+concurrency:
+  group: prod-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: databricks/setup-cli@main
+      - name: Deploy the bundle to prod
+        run: databricks bundle deploy -t prod
+      # Smoke test: prove the deploy is alive by running one headless job.
+      # Enable this line once a data-independent job (e.g. tests_job) exists
+      # in the prod target. Until then, the successful deploy is the proof.
+      # - name: Run smoke job
+      #   run: databricks bundle run -t prod tests_job
