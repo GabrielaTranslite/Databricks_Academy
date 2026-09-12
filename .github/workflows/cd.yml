@@ -27,7 +27,5 @@ jobs:
       - name: Deploy the bundle to prod
         run: databricks bundle deploy -t prod
       # Smoke test: prove the deploy is alive by running one headless job.
-      # Enable this line once a data-independent job (e.g. tests_job) exists
-      # in the prod target. Until then, the successful deploy is the proof.
-      # - name: Run smoke job
-      #   run: databricks bundle run -t prod tests_job
+      - name: Run smoke job
+        run: databricks bundle run -t prod tests_job
