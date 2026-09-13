@@ -40,12 +40,16 @@ TABLES = {
 # Creating a materialized view from prices data (batch source)
 @dp.materialized_view(name = TABLES["prices_bronze"])
 def prices_bronze():
-    return spark.read.format("json").load(LANDING)
+    df = spark.read.format("json").load(LANDING)
+    if "ingestion_ts" not in df.columns:
+        df = df.withColumn("ingestion_ts", F.current_timestamp())
+    return df
 
 # Creating a streaming source from events data (sensors)
 @dp.table(name = TABLES["sensor_bronze"])
 def sensor_bronze():
-    return spark.readStream.table(f"{CATALOG}.{BRONZE_SCHEMA}.sensor_data")
+    df = spark.readStream.table(f"{CATALOG}.{BRONZE_SCHEMA}.sensor_data")
+    return df
 
 
 # ==============================================
