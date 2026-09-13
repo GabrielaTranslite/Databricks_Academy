@@ -54,6 +54,27 @@ provides job and all-purpose cluster policies but no pipeline (DLT) policy.
 - The DQX quality library is installed through the pipeline `environment` dependencies, which is the
   supported method on both serverless and classic compute.
 
+A classic pipeline cluster is created fresh for each run and cannot be pre-warmed like the shared GP1,
+so its cold start can queue for several minutes behind shared-Azure capacity. This is the practical
+trade-off of the "no serverless" rule: serverless starts instantly, classic pays a cold start.
+
+## Infrastructure layer (Terraform)
+
+The bundle promotes workspace assets. The Azure infrastructure underneath them (the workspace, the
+storage account, the Key Vault, the Event Hub) is a separate layer, and here it is expressed with
+Terraform. This keeps a clean two-layer model: Terraform describes the infrastructure, the Databricks
+Asset Bundle deploys the assets that run on it.
+
+The Academy's Azure resources are owned centrally, so this configuration is deliberately read-only. It
+uses Terraform `data` sources to read the existing resource group, Databricks workspace, storage
+account, Key Vault and Event Hub namespace, and exposes their coordinates as outputs. `terraform apply`
+reports zero changes because nothing is created or modified. It is kept separate from `cd.yml` on
+purpose: the deploy path stays simple and never depends on Azure credentials just to resolve a static
+host. See [`../terraform/README.md`](../terraform/README.md) for how to run it. No secrets (connection
+strings or keys) are exposed as outputs.
+
+![Terraform reading the Azure infrastructure](images/terraform_outputs.png)
+
 ## Promotion as code
 
 Everything in prod comes from Git, nothing from manual clicks:
@@ -103,7 +124,7 @@ merge, and CD deploys to prod.
 ## Next steps
 
 - Replace the PAT with a service principal (OAuth M2M) for team-owned, rotatable prod authentication.
-- Optionally provision the Azure side (resource group, storage, Key Vault, Event Hub, workspace, Unity
-  Catalog external location) with Terraform, keeping infrastructure and bundle assets in separate
-  layers.
+- Extend the Terraform layer from reading the Azure side to provisioning it (resource group, storage,
+  Key Vault, Event Hub, workspace, Unity Catalog external location), keeping infrastructure and bundle
+  assets in separate layers.
 - Align the promoted dashboards' datasets with the prod catalog and schemas.
