@@ -15,6 +15,6 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run:  pip install "typer>=0.27" "databricks-sdk>=0.17" rich
       - name: Run orchestrator.py
         run: python Lab9/orchestrator.py run --job entsoe-unit-tests-prod
