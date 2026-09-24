@@ -17,10 +17,7 @@ inserts, updates and deletes are reflected incrementally in a target table (Part
 ## Files in this lab
 
 - `databricks_federation.ipynb` - the main notebook, Part A and Part B end to end.
-- `neon_datacenters_seed.sql` - run in Neon once to create and populate `public.dc_dim`.
-- `databricks_federation_datacenters.sql` - reference SQL for the federation objects and queries.
-- `lab10_cdc_scd2_datacenters.sql` - reference SQL for the CDC and SCD2 flow.
-- `Lab10_StepByStep_Instructions.docx` - a hands-on runbook for the whole lab.
+
 
 ## External database
 
