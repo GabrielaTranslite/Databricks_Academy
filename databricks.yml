@@ -47,9 +47,9 @@ variables:
   warehouse_id:
     description: SQL warehouse id for the DQ dashboard refresh (set per target once the dashboard is wired).
     default: ""
-  prod_cluster_id:
-    description: Cluster id
-    default: 0702-132442-toro5spu
+  #prod_cluster_id:
+    #description: Cluster id
+    #default: 0702-132442-toro5spu
 sync:
   exclude:
     - "*.dbc"
@@ -69,7 +69,7 @@ resources:
   pipelines:
     entsoe_silver_ldp:
       name: entsoe-silver-ldp-${bundle.target}   # entsoe-silver-ldp-dev / -prod
-      catalog: ${var.catalog}                    # target catalog (workspace on dev, dbr_dev on prod)
+      catalog: ${var.catalog}                    # target catalog (workspace on dev, dbr_dev_trial on prod)
       schema: ${var.silver_schema}               # where the pipeline writes its tables
       serverless: true
 
@@ -263,7 +263,7 @@ targets:
   prod:
     mode: production
     workspace:
-      host: https://adb-7405604503619901.1.azuredatabricks.net
+      host: https://adb-7405615123305702.2.azuredatabricks.net
       root_path: /Workspace/Users/gabrielajaniszews786@softserve.academy/.bundle/${bundle.name}/${bundle.target}
     permissions:
       - user_name: gabrielajaniszews786@softserve.academy
@@ -281,16 +281,8 @@ targets:
     resources:
       pipelines:
         entsoe_silver_ldp:
-          serverless: false
-          clusters:
-            - label: default
-              node_type_id: "Standard_F4"
-              num_workers: 1
-              custom_tags:
-                ResourceClass: "SingleNode"
-              spark_conf:
-                spark.master: "local[*]"
-                spark.databricks.cluster.profile: "singleNode"
+          serverless: true
+
       
       dashboards:
         dq_dashboard:
@@ -305,15 +297,18 @@ targets:
           dataset_catalog: ${var.catalog}
       jobs:
         tests_job:
-          name: entsoe-unit-tests-prod
+          name: entsoe-unit-tests-dev
           tasks:
             - task_key: unit_tests
-              existing_cluster_id: ${var.prod_cluster_id}
               spark_python_task:
                 python_file: ./Lab7/run_tests.py
-              libraries:
-                - pypi:
-                    package: pytest
+              environment_key: test_env
+          environments:
+            - environment_key: test_env
+              spec:
+                environment_version: "3"
+                dependencies:
+                  - pytest
         # --- Lab 7: run the declarative pipeline (silver + DQX + gold), then build dim_date ---
         # Bronze on prod is produced by the ingestion tasks in silver_pipeline (fetch / autoloader /
         # event hub), so this job assumes bronze is already populated and just runs pipeline + dim_date.
@@ -326,7 +321,7 @@ targets:
             - task_key: build_dim_date
               depends_on:
                 - task_key: run_pipeline
-              existing_cluster_id: ${var.prod_cluster_id}
+              #existing_cluster_id: ${var.prod_cluster_id}
               notebook_task:
                 notebook_path: ./Lab7/06_gold_dim_date.ipynb
                 base_parameters:
@@ -346,7 +341,7 @@ targets:
 
             # --- Bronze: prices from the ENTSO-E API, landed then Auto Loaded ---
             - task_key: fetch_prices
-              existing_cluster_id: ${var.prod_cluster_id}
+              #existing_cluster_id: ${var.prod_cluster_id}
               notebook_task:
                 notebook_path: ./Lab3/01_fetch_entsoe_prices_lab3.ipynb
                 base_parameters:
@@ -358,7 +353,7 @@ targets:
                   secret_key: gabriela-entsoe-token
 
             - task_key: autoloader_prices
-              existing_cluster_id: ${var.prod_cluster_id}
+              #existing_cluster_id: ${var.prod_cluster_id}
               depends_on:
                 - task_key: fetch_prices
               notebook_task:
@@ -371,7 +366,7 @@ targets:
             # NOTE: 03_fetch_sensor_streaming must be parameterized (widgets:
             #       eh_namespace, eh_name, secret_scope, secret_key) for these to apply.
             - task_key: ingest_sensor
-              existing_cluster_id: ${var.prod_cluster_id}
+              #existing_cluster_id: ${var.prod_cluster_id}
               notebook_task:
                 notebook_path: ./Lab3/03_fetch_sensor_streaming_lab3.ipynb
                 base_parameters:
@@ -384,7 +379,7 @@ targets:
 
             # --- Silver ---
             - task_key: silver_prices
-              existing_cluster_id: ${var.prod_cluster_id}
+              #existing_cluster_id: ${var.prod_cluster_id}
               depends_on:
                 - task_key: autoloader_prices
               notebook_task:
@@ -396,7 +391,7 @@ targets:
                   run_checks: "false"
 
             - task_key: silver_sensor
-              existing_cluster_id: ${var.prod_cluster_id}
+              #existing_cluster_id: ${var.prod_cluster_id}
               depends_on:
                 - task_key: ingest_sensor
               notebook_task:
@@ -408,7 +403,7 @@ targets:
                   run_checks: "false"
 
             - task_key: silver_dim
-              existing_cluster_id: ${var.prod_cluster_id}
+              #existing_cluster_id: ${var.prod_cluster_id}
               depends_on:
                 - task_key: ingest_sensor
               notebook_task:
