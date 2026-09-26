@@ -26,7 +26,7 @@
 
 # COMMAND ----------
 
-# MAGIC %pip install -U -qqq databricks-langchain databricks-vectorsearch databricks-agents "mlflow[databricks]" "unitycatalog-ai[databricks]" "unitycatalog-langchain[databricks]"
+# MAGIC %pip install -U -qqq databricks-langchain databricks-vectorsearch databricks-agents "mlflow[databricks]" "unitycatalog-ai[databricks]" "unitycatalog-langchain[databricks]" pypdf
 # MAGIC %restart_python
 
 # COMMAND ----------
@@ -46,6 +46,7 @@ DOCS_TABLE   = f"{CATALOG}.{GOLD_SCHEMA}.project_docs"
 VS_ENDPOINT  = "entsoe_vs"                                   # Free Edition allows exactly 1
 VS_INDEX     = f"{CATALOG}.{GOLD_SCHEMA}.project_docs_index"
 DOCS_PATH    = "/Workspace/Repos/gabrielajaniszewska@translite.pl/Databricks_Academy/GenAI/docs"  # folder that holds the README.md files
+PDF_VOLUME_PATH = "/Volumes/dbr_dev/gabrielajaniszews786_gold/docs_volume/MoP_Ref2_DDD_v3r4.pdf"  # ENTSO-E reference PDF (external_reference doc_type)
 
 # Where to register + deploy the agent
 UC_MODEL     = f"{CATALOG}.{GOLD_SCHEMA}.entsoe_support_agent"
@@ -125,11 +126,36 @@ def chunk_markdown(path):
         if len(part) < 40:
             continue
         heading = part.splitlines()[0].lstrip("# ").strip()
-        rows.append(Row(doc_name=doc, section=heading[:200], content=part))
+        rows.append(Row(doc_name=doc, section=heading[:200], content=part, doc_type="internal_docs"))
+    return rows
+
+def chunk_pdf(path, max_chars=2000):
+    """One row per PDF page, split further if a page runs long; same shape as chunk_markdown's rows."""
+    from pypdf import PdfReader
+
+    doc = os.path.splitext(os.path.basename(path))[0]
+    reader = PdfReader(path)
+    rows = []
+    for page_num, page in enumerate(reader.pages, start=1):
+        text = (page.extract_text() or "").strip()
+        if len(text) < 40:
+            continue
+        pieces = [text[i:i + max_chars] for i in range(0, len(text), max_chars)]
+        for j, piece in enumerate(pieces, start=1):
+            section = f"Page {page_num}" + (f" (part {j})" if len(pieces) > 1 else "")
+            rows.append(Row(doc_name=doc, section=section, content=piece, doc_type="external_reference"))
     return rows
 
 paths = glob.glob(os.path.join(DOCS_PATH, "README*.md"))
 records = [r for p in paths for r in chunk_markdown(p)]
+
+if os.path.exists(PDF_VOLUME_PATH):
+    try:
+        records += chunk_pdf(PDF_VOLUME_PATH)
+    except Exception as e:
+        print(f"WARNING: failed to chunk PDF at {PDF_VOLUME_PATH} - {e}")
+else:
+    print(f"WARNING: no PDF found at {PDF_VOLUME_PATH} - skipping external_reference chunks.")
 
 # Fallback so the cell never hard-fails during a live demo if the path is off.
 if not records:
@@ -137,7 +163,8 @@ if not records:
                    section="Row-Level Security",
                    content="RLS in the gold layer uses regional_filter(bidding_zone): members of Poland AND "
                            "admins see only PL rows. Applied with ALTER MATERIALIZED VIEW consumption_hourly "
-                           "SET ROW FILTER regional_filter ON (bidding_zone).")]
+                           "SET ROW FILTER regional_filter ON (bidding_zone).",
+                   doc_type="internal_docs")]
     print("WARNING: no README files found at DOCS_PATH - using an inline fallback chunk.")
 
 docs_df = spark.createDataFrame(records).withColumn("id", F.monotonically_increasing_id())
@@ -146,7 +173,7 @@ docs_df = spark.createDataFrame(records).withColumn("id", F.monotonically_increa
         .saveAsTable(DOCS_TABLE))
 spark.sql(f"ALTER TABLE {DOCS_TABLE} SET TBLPROPERTIES (delta.enableChangeDataFeed = true)")
 print(f"{docs_df.count()} chunks written to {DOCS_TABLE}")
-display(spark.table(DOCS_TABLE).select("doc_name", "section"))
+display(spark.table(DOCS_TABLE).select("doc_name", "section", "doc_type"))
 
 # COMMAND ----------
 
@@ -174,6 +201,7 @@ index = vsc.create_delta_sync_index_and_wait(
     primary_key="id",
     embedding_source_column="content",
     embedding_model_endpoint_name=EMBEDDING_ENDPOINT,
+    columns=["id", "doc_name", "section", "content", "doc_type"],  # doc_type synced so retrieval can filter on it
 )
 print("Index online:", VS_INDEX)
 
@@ -204,9 +232,11 @@ uc_tools = UCFunctionToolkit(function_names=[
 rag_tool = VectorSearchRetrieverTool(
     index_name=VS_INDEX,
     num_results=3,
-    columns=["doc_name", "section", "content"],
+    columns=["doc_name", "section", "content", "doc_type"],
     tool_name="search_project_docs",
-    tool_description="Search the project README documentation (how the pipeline, gold layer, governance, tests and alerts were built).",
+    tool_description="Search the project documentation: internal_docs (the project README files - how the "
+                      "pipeline, gold layer, governance, tests and alerts were built) and external_reference "
+                      "(the ENTSO-E reference PDF). Each result's doc_type tells you which one it came from.",
 )
 
 tools = uc_tools + [rag_tool]
