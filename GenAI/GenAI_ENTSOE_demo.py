@@ -26,7 +26,7 @@
 
 # COMMAND ----------
 
-# MAGIC %pip install -qqq databricks-langchain==0.20.0 databricks-vectorsearch==0.75 databricks-agents==1.12.0 "mlflow[databricks]==3.16.1" "unitycatalog-ai[databricks]==0.4.0" "unitycatalog-langchain[databricks]==0.4.0" pypdf==6.19.0 langchain==1.2.10 langgraph==1.0.10 langgraph-prebuilt==1.0.13 langgraph-checkpoint==4.2.0 langgraph-sdk==0.3.15
+# MAGIC %pip install -U -qqq databricks-langchain databricks-vectorsearch databricks-agents "mlflow[databricks]" "unitycatalog-ai[databricks]" "unitycatalog-langchain[databricks]" "langgraph-prebuilt==1.0.8"
 # MAGIC %restart_python
 
 # COMMAND ----------
