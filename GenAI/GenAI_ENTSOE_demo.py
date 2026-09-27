@@ -31,30 +31,43 @@
 
 # COMMAND ----------
 
-# Configuration
-dbutils.widgets.combobox("catalog", "workspace", ["workspace", "dbr_dev"], "Unity Catalog")
-dbutils.widgets.combobox("gold_schema", "gold", ["gold", "gabrielajaniszews786_gold"], "Gold schema")
-CATALOG = dbutils.widgets.get("catalog")
-GOLD_SCHEMA = dbutils.widgets.get("gold_schema")
+dbutils.widgets.dropdown("target_env", "dev", ["dev", "prod"], "Target environment")
+TARGET_ENV = dbutils.widgets.get("target_env")
+
+ENV_CONFIG = {
+    "dev": {   # your Free Edition / Free Trial
+        "catalog": "workspace",
+        "gold_schema": "gold",
+        "docs_path": "/Workspace/Repos/gabrielajaniszewska@translite.pl/Databricks_Academy/GenAI/docs",
+        "pdf_volume_path": "/Volumes/workspace/gold/docs_volume/MoP_Ref2_DDD_v3r4.pdf",
+    },
+    "prod": {  # shared Azure workspace (profile dbr_dev_trial, catalog is still dbr_dev)
+        "catalog": "dbr_dev",
+        "gold_schema": "gabrielajaniszews786_gold",
+        "docs_path": "/Workspace/Repos/gabrielajaniszewska@translite.pl/Databricks_Academy/GenAI/docs",
+        "pdf_volume_path": "/Volumes/dbr_dev/gabrielajaniszews786_gold/docs_volume/MoP_Ref2_DDD_v3r4.pdf",
+    },
+}
+
+cfg = ENV_CONFIG[TARGET_ENV]
+CATALOG      = cfg["catalog"]
+GOLD_SCHEMA  = cfg["gold_schema"]
+DOCS_PATH    = cfg["docs_path"]
+PDF_VOLUME_PATH = cfg["pdf_volume_path"]
 
 FACT_TABLE   = f"{CATALOG}.{GOLD_SCHEMA}.consumption_hourly"
 DIM_DATE     = f"{CATALOG}.{GOLD_SCHEMA}.dim_date"
-
-# GenAI resources
-LLM_ENDPOINT       = "databricks-meta-llama-3-3-70b-instruct"  # or databricks-claude-sonnet-5, etc.
-EMBEDDING_ENDPOINT = "databricks-gte-large-en"
-
-# RAG corpus + index
 DOCS_TABLE   = f"{CATALOG}.{GOLD_SCHEMA}.project_docs"
-VS_ENDPOINT  = "entsoe_vs"
 VS_INDEX     = f"{CATALOG}.{GOLD_SCHEMA}.project_docs_index"
-DOCS_PATH    = "/Workspace/Users/gabrielajaniszews786@softserve.academy/Databricks_Academy/GenAI/docs"  # folder that holds the README.md files
-PDF_VOLUME_PATH = "/Volumes/dbr_dev/gabrielajaniszews786_gold/docs_volume/MoP_Ref2_DDD_v3r4.pdf"  # ENTSO-E reference PDF (external_reference doc_type)
-
-# Where to register + deploy the agent
 UC_MODEL     = f"{CATALOG}.{GOLD_SCHEMA}.entsoe_support_agent"
 
-print("Fact table:", FACT_TABLE)
+VS_ENDPOINT  = "entsoe_vs" if TARGET_ENV == "dev" else "prod-retail-rag-endpoint"
+
+LLM_ENDPOINT       = "databricks-meta-llama-3-3-70b-instruct"
+EMBEDDING_ENDPOINT = "databricks-gte-large-en"
+
+print(f"Running against: {TARGET_ENV} | catalog={CATALOG} | schema={GOLD_SCHEMA}")
+print(f"DOCS_TABLE = {DOCS_TABLE}")
 
 # COMMAND ----------
 
@@ -151,13 +164,37 @@ def chunk_pdf(path, max_chars=2000):
 
 paths = glob.glob(os.path.join(DOCS_PATH, "README*.md"))
 records = [r for p in paths for r in chunk_markdown(p)]
-records += chunk_pdf(PDF_VOLUME_PATH)
+records += chunk_pdf(PDF_VOLUME_PATH)   # let a real failure here surface immediately
 
 from collections import Counter
 counts = Counter(r.doc_type for r in records)
 assert counts.get("internal_docs", 0) > 0, f"No README chunks found at {DOCS_PATH}."
 assert counts.get("external_reference", 0) > 0, f"No PDF chunks found at {PDF_VOLUME_PATH}."
+
+print(f"CATALOG={CATALOG}, DOCS_TABLE={DOCS_TABLE}")
 print(f"Corpus ready: {dict(counts)}")
+
+docs_df = spark.createDataFrame(records).withColumn("id", F.monotonically_increasing_id())
+(docs_df.write.mode("overwrite")
+        .option("delta.enableChangeDataFeed", "true")
+        .option("mergeSchema", "true")
+        .saveAsTable(DOCS_TABLE))
+spark.sql(f"ALTER TABLE {DOCS_TABLE} SET TBLPROPERTIES (delta.enableChangeDataFeed = true)")
+print(f"{docs_df.count()} chunks written to {DOCS_TABLE}")
+display(spark.table(DOCS_TABLE).select("doc_name", "section", "doc_type"))
+
+# COMMAND ----------
+
+import time
+for i in range(30):
+    status = vsc.get_index(endpoint_name=VS_ENDPOINT, index_name=VS_INDEX).describe()["status"]
+    print(f"[{i*20}s] state={status['detailed_state']}, ready={status['ready']}")
+    if status["ready"]:
+        print("Index is online.")
+        break
+    time.sleep(20)
+else:
+    print("Still not ready after 10 minutes - worth checking the endpoint page in the UI.")
 
 # COMMAND ----------
 
@@ -167,20 +204,23 @@ vsc = VectorSearchClient(disable_notice=True)
 
 # Create the endpoint once (skip/ignore if it already exists).
 try:
-    vsc.create_endpoint_and_wait(name=VS_ENDPOINT, endpoint_type="STANDARD")
+    index = vsc.create_delta_sync_index_and_wait(
+        endpoint_name=VS_ENDPOINT,
+        index_name=VS_INDEX,
+        source_table_name=DOCS_TABLE,
+        pipeline_type="TRIGGERED",
+        primary_key="id",
+        embedding_source_column="content",
+        embedding_model_endpoint_name=EMBEDDING_ENDPOINT,
+    )
+    print(f"Created new index: {VS_INDEX}")
 except Exception as e:
-    print("Endpoint note:", e)
-
-index = vsc.create_delta_sync_index_and_wait(
-    endpoint_name=VS_ENDPOINT,
-    index_name=VS_INDEX,
-    source_table_name=DOCS_TABLE,
-    pipeline_type="TRIGGERED",
-    primary_key="id",
-    embedding_source_column="content",
-    embedding_model_endpoint_name=EMBEDDING_ENDPOINT,
-)
-print("Index online:", VS_INDEX)
+    if "already exists" in str(e).lower():
+        index = vsc.get_index(endpoint_name=VS_ENDPOINT, index_name=VS_INDEX)
+        index.sync()
+        print(f"Index already existed - triggered a re-sync from {DOCS_TABLE} instead.")
+    else:
+        raise
 
 # COMMAND ----------
 
