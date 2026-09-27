@@ -199,6 +199,7 @@ try:
         primary_key="id",
         embedding_source_column="content",
         embedding_model_endpoint_name=EMBEDDING_ENDPOINT,
+        columns_to_sync=["id", "doc_name", "section", "content", "doc_type"],
     )
     print(f"Created new index: {VS_INDEX}")
 except Exception as e:
@@ -242,18 +243,28 @@ uc_tools = UCFunctionToolkit(function_names=[
     f"{CATALOG}.{GOLD_SCHEMA}.list_bidding_zones",
 ]).tools
 
-rag_tool = VectorSearchRetrieverTool(
+internal_docs_tool = VectorSearchRetrieverTool(
     index_name=VS_INDEX,
     num_results=3,
     columns=["doc_name", "section", "content", "doc_type"],
-    filters={"doc_type": {"$in": ["internal_docs", "external_reference"]}},
-    tool_name="search_project_docs",
-    tool_description="Search the project documentation: internal_docs (the project README files - how the "
-                      "pipeline, gold layer, governance, tests and alerts were built) and external_reference "
-                      "(the ENTSO-E reference PDF). Each result's doc_type tells you which one it came from.",
+    filters={"doc_type": "internal_docs"},
+    tool_name="search_internal_docs",
+    tool_description="Search the project's own README documentation - how the pipeline, gold layer, "
+                      "governance, tests and alerts were built in THIS project.",
 )
 
-tools = uc_tools + [rag_tool]
+external_reference_tool = VectorSearchRetrieverTool(
+    index_name=VS_INDEX,
+    num_results=3,
+    columns=["doc_name", "section", "content", "doc_type"],
+    filters={"doc_type": "external_reference"},
+    tool_name="search_entsoe_glossary",
+    tool_description="Search the official ENTSO-E reference documentation - definitions and specifications "
+                      "such as bidding zones, aFRR/mFRR, imbalance settlement, and other domain terminology "
+                      "NOT specific to this project's implementation.",
+)
+
+tools = uc_tools + [internal_docs_tool, external_reference_tool]
 
 SYSTEM_PROMPT = (
     "You are the ENTSO-E project assistant. "
@@ -272,7 +283,7 @@ agent = create_agent(llm, tools, system_prompt=SYSTEM_PROMPT)
 
 for step in agent.stream(
     {"messages": [{"role": "user",
-                   "content": "What was the total energy cost in the PL bidding zone in August 2026, and the average PUE?"}]},
+                   "content": "What was the total energy cost in the PL bidding zone in September 2026, and the average PUE?"}]},
     stream_mode="values",
 ):
     step["messages"][-1].pretty_print()
