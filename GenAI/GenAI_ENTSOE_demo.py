@@ -185,19 +185,6 @@ display(spark.table(DOCS_TABLE).select("doc_name", "section", "doc_type"))
 
 # COMMAND ----------
 
-import time
-for i in range(30):
-    status = vsc.get_index(endpoint_name=VS_ENDPOINT, index_name=VS_INDEX).describe()["status"]
-    print(f"[{i*20}s] state={status['detailed_state']}, ready={status['ready']}")
-    if status["ready"]:
-        print("Index is online.")
-        break
-    time.sleep(20)
-else:
-    print("Still not ready after 10 minutes - worth checking the endpoint page in the UI.")
-
-# COMMAND ----------
-
 from databricks.vector_search.client import VectorSearchClient
 
 vsc = VectorSearchClient(disable_notice=True)
@@ -224,6 +211,19 @@ except Exception as e:
 
 # COMMAND ----------
 
+import time
+for i in range(30):
+    status = vsc.get_index(endpoint_name=VS_ENDPOINT, index_name=VS_INDEX).describe()["status"]
+    print(f"[{i*20}s] state={status['detailed_state']}, ready={status['ready']}")
+    if status["ready"]:
+        print("Index is online.")
+        break
+    time.sleep(20)
+else:
+    print("Still not ready after 10 minutes - worth checking the endpoint page in the UI.")
+
+# COMMAND ----------
+
 # MAGIC %md
 # MAGIC ## 3. Assemble the agent
 # MAGIC LLM + [SQL tools, RAG retriever] wired into a LangGraph ReAct agent. Run this live - it is fast.
@@ -233,7 +233,7 @@ except Exception as e:
 # DBTITLE 1,Cell 14
 # Section 3: Assemble the agent
 from databricks_langchain import ChatDatabricks, UCFunctionToolkit, VectorSearchRetrieverTool
-from langgraph.prebuilt import create_react_agent
+from langchain.agents import create_agent
 
 llm = ChatDatabricks(endpoint=LLM_ENDPOINT, temperature=0.1)
 
@@ -246,6 +246,7 @@ rag_tool = VectorSearchRetrieverTool(
     index_name=VS_INDEX,
     num_results=3,
     columns=["doc_name", "section", "content", "doc_type"],
+    filters={"doc_type": {"$in": ["internal_docs", "external_reference"]}},
     tool_name="search_project_docs",
     tool_description="Search the project documentation: internal_docs (the project README files - how the "
                       "pipeline, gold layer, governance, tests and alerts were built) and external_reference "
@@ -261,7 +262,7 @@ SYSTEM_PROMPT = (
     "Always name the bidding zone and date range you used. If a zone is unknown, call list_bidding_zones first."
 )
 
-agent = create_react_agent(llm, tools, prompt=SYSTEM_PROMPT)
+agent = create_agent(llm, tools, prompt=SYSTEM_PROMPT)
 
 # COMMAND ----------
 
