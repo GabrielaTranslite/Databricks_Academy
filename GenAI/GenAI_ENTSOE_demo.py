@@ -4,13 +4,13 @@
 # environment_version = "5"
 # ///
 # MAGIC %md
-# MAGIC # GenAI on Databricks with Mosaic AI - live demo on the ENTSO-E project
+# MAGIC # GenAI on Databricks with Mosaic AI - Lab 11
 # MAGIC
 # MAGIC RAG + Agent + Model Serving over the **governed gold layer** of the datacenter energy-cost
-# MAGIC project (Labs 3-7). The agent has two skills:
+# MAGIC project (Labs 3-9). The agent has two skills:
 # MAGIC
 # MAGIC 1. **SQL tool** - a Unity Catalog function over `gold.consumption_hourly` (numbers).
-# MAGIC 2. **RAG retriever** - a Vector Search index over the project `README` files (documentation).
+# MAGIC 2. **RAG retriever** - a Vector Search index over the project `README` files (documentation) + Entsoe Handboo.
 # MAGIC
 # MAGIC The SQL tool reads the same table that already carries row-level security (`regional_filter`) and a column mask (`site_id_mask`), so the agent inherits
 # MAGIC them with **zero extra access-control code**.
@@ -26,14 +26,17 @@
 
 # COMMAND ----------
 
-# MAGIC %pip install -U -qqq databricks-langchain databricks-vectorsearch databricks-agents "mlflow[databricks]" "unitycatalog-ai[databricks]" "unitycatalog-langchain[databricks]" pypdf
+# MAGIC %pip install -qqq databricks-langchain==0.20.0 databricks-vectorsearch==0.75 databricks-agents==1.12.0 "mlflow[databricks]==3.16.1" "unitycatalog-ai[databricks]==0.4.0" "unitycatalog-langchain[databricks]==0.4.0" pypdf==6.19.0 langchain==1.2.10 langgraph==1.0.10 langgraph-prebuilt==1.0.13 langgraph-checkpoint==4.2.0 langgraph-sdk==0.3.15
 # MAGIC %restart_python
 
 # COMMAND ----------
 
-# --- adapt these to the workspace you demo in -------------------------------
-CATALOG      = "workspace"     # dev target; use "dbr_dev" for prod
-GOLD_SCHEMA  = "gold"
+# Configuration
+dbutils.widgets.combobox("catalog", "workspace", ["workspace", "dbr_dev"], "Unity Catalog")
+dbutils.widgets.combobox("gold_schema", "gold", ["gold", "gabrielajaniszews786_gold"], "Gold schema")
+CATALOG = dbutils.widgets.get("catalog")
+GOLD_SCHEMA = dbutils.widgets.get("gold_schema")
+
 FACT_TABLE   = f"{CATALOG}.{GOLD_SCHEMA}.consumption_hourly"
 DIM_DATE     = f"{CATALOG}.{GOLD_SCHEMA}.dim_date"
 
@@ -43,9 +46,9 @@ EMBEDDING_ENDPOINT = "databricks-gte-large-en"
 
 # RAG corpus + index
 DOCS_TABLE   = f"{CATALOG}.{GOLD_SCHEMA}.project_docs"
-VS_ENDPOINT  = "entsoe_vs"                                   # Free Edition allows exactly 1
+VS_ENDPOINT  = "entsoe_vs"
 VS_INDEX     = f"{CATALOG}.{GOLD_SCHEMA}.project_docs_index"
-DOCS_PATH    = "/Workspace/Repos/gabrielajaniszewska@translite.pl/Databricks_Academy/GenAI/docs"  # folder that holds the README.md files
+DOCS_PATH    = "/Workspace/Users/gabrielajaniszews786@softserve.academy/Databricks_Academy/GenAI/docs"  # folder that holds the README.md files
 PDF_VOLUME_PATH = "/Volumes/dbr_dev/gabrielajaniszews786_gold/docs_volume/MoP_Ref2_DDD_v3r4.pdf"  # ENTSO-E reference PDF (external_reference doc_type)
 
 # Where to register + deploy the agent
@@ -148,38 +151,13 @@ def chunk_pdf(path, max_chars=2000):
 
 paths = glob.glob(os.path.join(DOCS_PATH, "README*.md"))
 records = [r for p in paths for r in chunk_markdown(p)]
+records += chunk_pdf(PDF_VOLUME_PATH)
 
-if os.path.exists(PDF_VOLUME_PATH):
-    try:
-        records += chunk_pdf(PDF_VOLUME_PATH)
-    except Exception as e:
-        print(f"WARNING: failed to chunk PDF at {PDF_VOLUME_PATH} - {e}")
-else:
-    print(f"WARNING: no PDF found at {PDF_VOLUME_PATH} - skipping external_reference chunks.")
-
-# Fallback so the cell never hard-fails during a live demo if the path is off.
-if not records:
-    records = [Row(doc_name="Lab6",
-                   section="Row-Level Security",
-                   content="RLS in the gold layer uses regional_filter(bidding_zone): members of Poland AND "
-                           "admins see only PL rows. Applied with ALTER MATERIALIZED VIEW consumption_hourly "
-                           "SET ROW FILTER regional_filter ON (bidding_zone).",
-                   doc_type="internal_docs")]
-    print("WARNING: no README files found at DOCS_PATH - using an inline fallback chunk.")
-
-docs_df = spark.createDataFrame(records).withColumn("id", F.monotonically_increasing_id())
-(docs_df.write.mode("overwrite")
-        .option("delta.enableChangeDataFeed", "true")
-        .saveAsTable(DOCS_TABLE))
-spark.sql(f"ALTER TABLE {DOCS_TABLE} SET TBLPROPERTIES (delta.enableChangeDataFeed = true)")
-print(f"{docs_df.count()} chunks written to {DOCS_TABLE}")
-display(spark.table(DOCS_TABLE).select("doc_name", "section", "doc_type"))
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC **PRE-RUN before the talk.** Creating the endpoint and syncing the index takes a few minutes.
-# MAGIC Run this the evening before, not live.
+from collections import Counter
+counts = Counter(r.doc_type for r in records)
+assert counts.get("internal_docs", 0) > 0, f"No README chunks found at {DOCS_PATH}."
+assert counts.get("external_reference", 0) > 0, f"No PDF chunks found at {PDF_VOLUME_PATH}."
+print(f"Corpus ready: {dict(counts)}")
 
 # COMMAND ----------
 
@@ -201,7 +179,6 @@ index = vsc.create_delta_sync_index_and_wait(
     primary_key="id",
     embedding_source_column="content",
     embedding_model_endpoint_name=EMBEDDING_ENDPOINT,
-    columns=["id", "doc_name", "section", "content", "doc_type"],  # doc_type synced so retrieval can filter on it
 )
 print("Index online:", VS_INDEX)
 
