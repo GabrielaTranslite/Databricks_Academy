@@ -262,7 +262,7 @@ SYSTEM_PROMPT = (
     "Always name the bidding zone and date range you used. If a zone is unknown, call list_bidding_zones first."
 )
 
-agent = create_agent(llm, tools, prompt=SYSTEM_PROMPT)
+agent = create_agent(llm, tools, system_prompt=SYSTEM_PROMPT)
 
 # COMMAND ----------
 
