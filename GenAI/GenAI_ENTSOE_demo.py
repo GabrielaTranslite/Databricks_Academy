@@ -26,7 +26,7 @@
 
 # COMMAND ----------
 
-# MAGIC %pip install -U -qqq databricks-langchain databricks-vectorsearch databricks-agents "mlflow[databricks]" "unitycatalog-ai[databricks]" "unitycatalog-langchain[databricks]" "langgraph-prebuilt==1.0.8"
+# MAGIC %pip install -U -qqq databricks-langchain databricks-vectorsearch databricks-agents "mlflow[databricks]" "unitycatalog-ai[databricks]" "unitycatalog-langchain[databricks]" "langgraph-prebuilt==1.0.8" pypdf
 # MAGIC %restart_python
 
 # COMMAND ----------
@@ -165,6 +165,8 @@ def chunk_pdf(path, max_chars=2000):
 paths = glob.glob(os.path.join(DOCS_PATH, "README*.md"))
 records = [r for p in paths for r in chunk_markdown(p)]
 records += chunk_pdf(PDF_VOLUME_PATH)   # let a real failure here surface immediately
+
+print(f"DEBUG: len(paths)={len(paths)}, len(records)={len(records)}")
 
 from collections import Counter
 counts = Counter(r.doc_type for r in records)
