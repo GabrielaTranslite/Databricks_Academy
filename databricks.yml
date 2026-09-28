@@ -286,7 +286,7 @@ targets:
       bronze_schema: gabrielajaniszews786_bronze
       silver_schema: gabrielajaniszews786_silver
       gold_schema: gabrielajaniszews786_gold
-      warehouse_id: 3ed106620db591d9
+      warehouse_id: c0152a553a7a830f
     resources:
       pipelines:
         entsoe_silver_ldp:
