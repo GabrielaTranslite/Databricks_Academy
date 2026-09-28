@@ -4,13 +4,13 @@
 # environment_version = "5"
 # ///
 # MAGIC %md
-# MAGIC # GenAI on Databricks with Mosaic AI - live demo on the ENTSO-E project
+# MAGIC # GenAI on Databricks with Mosaic AI - Lab 11
 # MAGIC
 # MAGIC RAG + Agent + Model Serving over the **governed gold layer** of the datacenter energy-cost
-# MAGIC project (Labs 3-7). The agent has two skills:
+# MAGIC project (Labs 3-9). The agent has two skills:
 # MAGIC
 # MAGIC 1. **SQL tool** - a Unity Catalog function over `gold.consumption_hourly` (numbers).
-# MAGIC 2. **RAG retriever** - a Vector Search index over the project `README` files (documentation).
+# MAGIC 2. **RAG retriever** - a Vector Search index over the project `README` files (documentation) + Entsoe Handboo.
 # MAGIC
 # MAGIC The SQL tool reads the same table that already carries row-level security (`regional_filter`) and a column mask (`site_id_mask`), so the agent inherits
 # MAGIC them with **zero extra access-control code**.
@@ -26,31 +26,48 @@
 
 # COMMAND ----------
 
-# MAGIC %pip install -U -qqq databricks-langchain databricks-vectorsearch databricks-agents "mlflow[databricks]" "unitycatalog-ai[databricks]" "unitycatalog-langchain[databricks]"
+# MAGIC %pip install -U -qqq databricks-langchain databricks-vectorsearch databricks-agents "mlflow[databricks]" "unitycatalog-ai[databricks]" "unitycatalog-langchain[databricks]" "langgraph-prebuilt==1.0.8" pypdf
 # MAGIC %restart_python
 
 # COMMAND ----------
 
-# --- adapt these to the workspace you demo in -------------------------------
-CATALOG      = "workspace"     # dev target; use "dbr_dev" for prod
-GOLD_SCHEMA  = "gold"
+dbutils.widgets.dropdown("target_env", "dev", ["dev", "prod"], "Target environment")
+TARGET_ENV = dbutils.widgets.get("target_env")
+
+ENV_CONFIG = {
+    "dev": {   # your Free Edition / Free Trial
+        "catalog": "workspace",
+        "gold_schema": "gold",
+        "docs_path": "/Workspace/Repos/gabrielajaniszewska@translite.pl/Databricks_Academy/GenAI/docs",
+        "pdf_volume_path": "/Volumes/workspace/gold/docs_volume/MoP_Ref2_DDD_v3r4.pdf",
+    },
+    "prod": {  # shared Azure workspace (profile dbr_dev_trial, catalog is still dbr_dev)
+        "catalog": "dbr_dev",
+        "gold_schema": "gabrielajaniszews786_gold",
+        "docs_path": "/Workspace/Repos/gabrielajaniszewska@translite.pl/Databricks_Academy/GenAI/docs",
+        "pdf_volume_path": "/Volumes/dbr_dev/gabrielajaniszews786_gold/docs_volume/MoP_Ref2_DDD_v3r4.pdf",
+    },
+}
+
+cfg = ENV_CONFIG[TARGET_ENV]
+CATALOG      = cfg["catalog"]
+GOLD_SCHEMA  = cfg["gold_schema"]
+DOCS_PATH    = cfg["docs_path"]
+PDF_VOLUME_PATH = cfg["pdf_volume_path"]
+
 FACT_TABLE   = f"{CATALOG}.{GOLD_SCHEMA}.consumption_hourly"
 DIM_DATE     = f"{CATALOG}.{GOLD_SCHEMA}.dim_date"
-
-# GenAI resources
-LLM_ENDPOINT       = "databricks-meta-llama-3-3-70b-instruct"  # or databricks-claude-sonnet-5, etc.
-EMBEDDING_ENDPOINT = "databricks-gte-large-en"
-
-# RAG corpus + index
 DOCS_TABLE   = f"{CATALOG}.{GOLD_SCHEMA}.project_docs"
-VS_ENDPOINT  = "entsoe_vs"                                   # Free Edition allows exactly 1
 VS_INDEX     = f"{CATALOG}.{GOLD_SCHEMA}.project_docs_index"
-DOCS_PATH    = "/Workspace/Repos/gabrielajaniszewska@translite.pl/Databricks_Academy/GenAI/docs"  # folder that holds the README.md files
-
-# Where to register + deploy the agent
 UC_MODEL     = f"{CATALOG}.{GOLD_SCHEMA}.entsoe_support_agent"
 
-print("Fact table:", FACT_TABLE)
+VS_ENDPOINT  = "entsoe_vs" if TARGET_ENV == "dev" else "prod-retail-rag-endpoint"
+
+LLM_ENDPOINT       = "databricks-meta-llama-3-3-70b-instruct"
+EMBEDDING_ENDPOINT = "databricks-gte-large-en"
+
+print(f"Running against: {TARGET_ENV} | catalog={CATALOG} | schema={GOLD_SCHEMA}")
+print(f"DOCS_TABLE = {DOCS_TABLE}")
 
 # COMMAND ----------
 
@@ -125,34 +142,48 @@ def chunk_markdown(path):
         if len(part) < 40:
             continue
         heading = part.splitlines()[0].lstrip("# ").strip()
-        rows.append(Row(doc_name=doc, section=heading[:200], content=part))
+        rows.append(Row(doc_name=doc, section=heading[:200], content=part, doc_type="internal_docs"))
+    return rows
+
+def chunk_pdf(path, max_chars=2000):
+    """One row per PDF page, split further if a page runs long; same shape as chunk_markdown's rows."""
+    from pypdf import PdfReader
+
+    doc = os.path.splitext(os.path.basename(path))[0]
+    reader = PdfReader(path)
+    rows = []
+    for page_num, page in enumerate(reader.pages, start=1):
+        text = (page.extract_text() or "").strip()
+        if len(text) < 40:
+            continue
+        pieces = [text[i:i + max_chars] for i in range(0, len(text), max_chars)]
+        for j, piece in enumerate(pieces, start=1):
+            section = f"Page {page_num}" + (f" (part {j})" if len(pieces) > 1 else "")
+            rows.append(Row(doc_name=doc, section=section, content=piece, doc_type="external_reference"))
     return rows
 
 paths = glob.glob(os.path.join(DOCS_PATH, "README*.md"))
 records = [r for p in paths for r in chunk_markdown(p)]
+records += chunk_pdf(PDF_VOLUME_PATH)   # let a real failure here surface immediately
 
-# Fallback so the cell never hard-fails during a live demo if the path is off.
-if not records:
-    records = [Row(doc_name="Lab6",
-                   section="Row-Level Security",
-                   content="RLS in the gold layer uses regional_filter(bidding_zone): members of Poland AND "
-                           "admins see only PL rows. Applied with ALTER MATERIALIZED VIEW consumption_hourly "
-                           "SET ROW FILTER regional_filter ON (bidding_zone).")]
-    print("WARNING: no README files found at DOCS_PATH - using an inline fallback chunk.")
+print(f"DEBUG: len(paths)={len(paths)}, len(records)={len(records)}")
+
+from collections import Counter
+counts = Counter(r.doc_type for r in records)
+assert counts.get("internal_docs", 0) > 0, f"No README chunks found at {DOCS_PATH}."
+assert counts.get("external_reference", 0) > 0, f"No PDF chunks found at {PDF_VOLUME_PATH}."
+
+print(f"CATALOG={CATALOG}, DOCS_TABLE={DOCS_TABLE}")
+print(f"Corpus ready: {dict(counts)}")
 
 docs_df = spark.createDataFrame(records).withColumn("id", F.monotonically_increasing_id())
 (docs_df.write.mode("overwrite")
         .option("delta.enableChangeDataFeed", "true")
+        .option("mergeSchema", "true")
         .saveAsTable(DOCS_TABLE))
 spark.sql(f"ALTER TABLE {DOCS_TABLE} SET TBLPROPERTIES (delta.enableChangeDataFeed = true)")
 print(f"{docs_df.count()} chunks written to {DOCS_TABLE}")
-display(spark.table(DOCS_TABLE).select("doc_name", "section"))
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC **PRE-RUN before the talk.** Creating the endpoint and syncing the index takes a few minutes.
-# MAGIC Run this the evening before, not live.
+display(spark.table(DOCS_TABLE).select("doc_name", "section", "doc_type"))
 
 # COMMAND ----------
 
@@ -162,20 +193,37 @@ vsc = VectorSearchClient(disable_notice=True)
 
 # Create the endpoint once (skip/ignore if it already exists).
 try:
-    vsc.create_endpoint_and_wait(name=VS_ENDPOINT, endpoint_type="STANDARD")
+    index = vsc.create_delta_sync_index_and_wait(
+        endpoint_name=VS_ENDPOINT,
+        index_name=VS_INDEX,
+        source_table_name=DOCS_TABLE,
+        pipeline_type="TRIGGERED",
+        primary_key="id",
+        embedding_source_column="content",
+        embedding_model_endpoint_name=EMBEDDING_ENDPOINT,
+        columns_to_sync=["id", "doc_name", "section", "content", "doc_type"],
+    )
+    print(f"Created new index: {VS_INDEX}")
 except Exception as e:
-    print("Endpoint note:", e)
+    if "already exists" in str(e).lower():
+        index = vsc.get_index(endpoint_name=VS_ENDPOINT, index_name=VS_INDEX)
+        index.sync()
+        print(f"Index already existed - triggered a re-sync from {DOCS_TABLE} instead.")
+    else:
+        raise
 
-index = vsc.create_delta_sync_index_and_wait(
-    endpoint_name=VS_ENDPOINT,
-    index_name=VS_INDEX,
-    source_table_name=DOCS_TABLE,
-    pipeline_type="TRIGGERED",
-    primary_key="id",
-    embedding_source_column="content",
-    embedding_model_endpoint_name=EMBEDDING_ENDPOINT,
-)
-print("Index online:", VS_INDEX)
+# COMMAND ----------
+
+import time
+for i in range(30):
+    status = vsc.get_index(endpoint_name=VS_ENDPOINT, index_name=VS_INDEX).describe()["status"]
+    print(f"[{i*20}s] state={status['detailed_state']}, ready={status['ready']}")
+    if status["ready"]:
+        print("Index is online.")
+        break
+    time.sleep(20)
+else:
+    print("Still not ready after 10 minutes - worth checking the endpoint page in the UI.")
 
 # COMMAND ----------
 
@@ -186,13 +234,9 @@ print("Index online:", VS_INDEX)
 # COMMAND ----------
 
 # DBTITLE 1,Cell 14
-# NOTE: Using a simplified agent implementation to avoid langgraph version incompatibility
-# The environment has langgraph 1.0.10 + langgraph-prebuilt 1.0.13 which are incompatible
-# This custom implementation provides the same interface without requiring langgraph.prebuilt
-
+# Section 3: Assemble the agent
 from databricks_langchain import ChatDatabricks, UCFunctionToolkit, VectorSearchRetrieverTool
-from langchain_core.messages import SystemMessage, HumanMessage, AIMessage, ToolMessage
-from typing import Dict, List, Any
+from langchain.agents import create_agent
 
 llm = ChatDatabricks(endpoint=LLM_ENDPOINT, temperature=0.1)
 
@@ -201,15 +245,28 @@ uc_tools = UCFunctionToolkit(function_names=[
     f"{CATALOG}.{GOLD_SCHEMA}.list_bidding_zones",
 ]).tools
 
-rag_tool = VectorSearchRetrieverTool(
+internal_docs_tool = VectorSearchRetrieverTool(
     index_name=VS_INDEX,
     num_results=3,
-    columns=["doc_name", "section", "content"],
-    tool_name="search_project_docs",
-    tool_description="Search the project README documentation (how the pipeline, gold layer, governance, tests and alerts were built).",
+    columns=["doc_name", "section", "content", "doc_type"],
+    filters={"doc_type": "internal_docs"},
+    tool_name="search_internal_docs",
+    tool_description="Search the project's own README documentation - how the pipeline, gold layer, "
+                      "governance, tests and alerts were built in THIS project.",
 )
 
-tools = uc_tools + [rag_tool]
+external_reference_tool = VectorSearchRetrieverTool(
+    index_name=VS_INDEX,
+    num_results=3,
+    columns=["doc_name", "section", "content", "doc_type"],
+    filters={"doc_type": "external_reference"},
+    tool_name="search_entsoe_glossary",
+    tool_description="Search the official ENTSO-E reference documentation - definitions and specifications "
+                      "such as bidding zones, aFRR/mFRR, imbalance settlement, and other domain terminology "
+                      "NOT specific to this project's implementation.",
+)
+
+tools = uc_tools + [internal_docs_tool, external_reference_tool]
 
 SYSTEM_PROMPT = (
     "You are the ENTSO-E project assistant. "
@@ -218,63 +275,7 @@ SYSTEM_PROMPT = (
     "Always name the bidding zone and date range you used. If a zone is unknown, call list_bidding_zones first."
 )
 
-# Custom agent class that mimics langgraph's create_react_agent interface
-class SimpleReActAgent:
-    def __init__(self, llm, tools, system_prompt):
-        self.llm = llm.bind_tools(tools)  # Enable tool calling
-        self.tools_by_name = {t.name: t for t in tools}
-        self.system_prompt = system_prompt
-    
-    def stream(self, input_dict, stream_mode="values"):
-        """Stream agent responses, yielding message states."""
-        # Convert input messages to LangChain format
-        messages = [SystemMessage(content=self.system_prompt)]
-        for msg in input_dict["messages"]:
-            if isinstance(msg, dict):
-                role = msg.get("role")
-                content = msg.get("content", "")
-                if role == "user":
-                    messages.append(HumanMessage(content=content))
-                elif role == "assistant":
-                    messages.append(AIMessage(content=content))
-            else:
-                messages.append(msg)
-        
-        # Yield initial state with user message
-        yield {"messages": messages}
-        
-        max_iterations = 10
-        for _ in range(max_iterations):
-            # Get LLM response with tool calls
-            response = self.llm.invoke(messages)
-            messages.append(response)
-            yield {"messages": messages}
-            
-            # Check if we're done (no tool calls)
-            if not response.tool_calls:
-                break
-            
-            # Execute tool calls
-            for tool_call in response.tool_calls:
-                tool = self.tools_by_name.get(tool_call["name"])
-                if tool:
-                    try:
-                        result = tool.invoke(tool_call["args"])
-                        tool_msg = ToolMessage(
-                            content=str(result),
-                            tool_call_id=tool_call.get("id", ""),
-                            name=tool_call["name"]
-                        )
-                    except Exception as e:
-                        tool_msg = ToolMessage(
-                            content=f"Error: {str(e)}",
-                            tool_call_id=tool_call.get("id", ""),
-                            name=tool_call["name"]
-                        )
-                    messages.append(tool_msg)
-                    yield {"messages": messages}
-
-agent = SimpleReActAgent(llm, tools, SYSTEM_PROMPT)
+agent = create_agent(llm, tools, system_prompt=SYSTEM_PROMPT)
 
 # COMMAND ----------
 
@@ -284,7 +285,7 @@ agent = SimpleReActAgent(llm, tools, SYSTEM_PROMPT)
 
 for step in agent.stream(
     {"messages": [{"role": "user",
-                   "content": "What was the total energy cost in the PL bidding zone in August 2026, and the average PUE?"}]},
+                   "content": "What was the total energy cost in the PL bidding zone in September 2026, and the average PUE?"}]},
     stream_mode="values",
 ):
     step["messages"][-1].pretty_print()
