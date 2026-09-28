@@ -46,11 +46,12 @@ def prices_bronze():
     return df
 
 # Creating a streaming source from events data (sensors)
-@dp.materialized_view(name = TABLES["prices_bronze"])
-def prices_bronze():
-    df = spark.read.format("json").load(LANDING)
-    if "ingestion_ts" not in df.columns:
-        df = df.withColumn("ingestion_ts", F.current_timestamp())
+
+@dp.table(name = TABLES["sensor_bronze"])
+def sensor_bronze():
+    df = (spark.readStream
+          .option("ignoreDeletes", "true")
+          .table(f"{CATALOG}.{BRONZE_SCHEMA}.sensor_data"))
     return df
 
 
