@@ -3,23 +3,32 @@
 # One bundle, two targets:
 #   dev  -> Databricks Free Edition. Bronze is produced by the synthetic generator
 #           (no internet egress, no Event Hub needed).
-#   prod -> Azure Databricks. Bronze is produced from the real ENTSO-E API
-#           (Auto Loader) and the Azure Event Hub stream.
+#   prod -> Azure Databricks. Bronze is produced from the real ENTSO-E API (prices,
+#           landed as JSON) and a synthetic sensor producer streamed through the
+#           Azure Event Hub, then read back with Structured Streaming.
 #
 # This bundle deploys:
-#   1. silver_pipeline    (classic Job, Lab 4)   -- imperative notebooks + MERGE, per target.
-#   2. entsoe_silver_ldp  (declarative pipeline)  -- Lakeflow, Lab 7 version: silver + DQX
-#                                                    quality checks (valid / quarantine split) + gold.
-#   3. tests_job          (Job, Lab 7)            -- pytest unit tests run headless on serverless.
-#   4. gold_dim_job       (Job, Lab 7)            -- runs the pipeline, then builds the dim_date
-#                                                    calendar dimension (generated from a date range).
+#   1. silver_pipeline      (classic Job, Lab 4)     -- imperative notebooks + MERGE, per target.
+#   2. entsoe_silver_ldp    (declarative pipeline)    -- Lakeflow, Lab 7 version: silver + DQX
+#                                                        quality checks (valid / quarantine split) + gold.
+#   3. tests_job            (Job, Lab 7)              -- pytest unit tests run headless on serverless.
+#   4. gold_dim_job         (Job, Lab 7, dev only)     -- seeds bronze with the synthetic generator, runs
+#                                                        the pipeline, then builds the dim_date calendar
+#                                                        dimension (generated from a date range).
+#   5. entsoe_pipeline_prod (Job, Lab 3/7, prod only)  -- fetch_prices (ENTSO-E API -> landing) and
+#                                                        event_hub_task (synthetic sensor producer -> Event
+#                                                        Hub) run in parallel; ingest_sensor (Event Hub ->
+#                                                        bronze sensor_data) waits on event_hub_task; run_pipeline
+#                                                        (entsoe_silver_ldp) waits on fetch_prices + ingest_sensor;
+#                                                        build_dim_date runs last.
 # silver_pipeline and entsoe_silver_ldp are kept side by side as the "classic vs declarative" comparison.
 #
 # Deploy dev:      databricks bundle deploy -t dev
-# Run unit tests:  databricks bundle run tests_job          -t dev
-# Run pipeline:    databricks bundle run entsoe_silver_ldp  -t dev
-# Run gold + dim:  databricks bundle run gold_dim_job       -t dev
+# Run unit tests:  databricks bundle run tests_job            -t dev
+# Run pipeline:    databricks bundle run entsoe_silver_ldp    -t dev
+# Run gold + dim:  databricks bundle run gold_dim_job         -t dev
 # Deploy prod:     databricks bundle deploy -t prod
+# Run prod job:    databricks bundle run entsoe_pipeline_prod -t prod
 
 bundle:
   name: entsoe_silver
@@ -312,6 +321,9 @@ targets:
         
         entsoe_pipeline_prod:
           name: entsoe-pipeline-prod
+          email_notifications:
+            on_failure:
+              - gabrielajaniszews786@softserve.academy
           tasks:
             # --- Bronze: prices from the ENTSO-E API ---
             - task_key: fetch_prices
