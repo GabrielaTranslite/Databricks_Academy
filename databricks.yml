@@ -3,23 +3,32 @@
 # One bundle, two targets:
 #   dev  -> Databricks Free Edition. Bronze is produced by the synthetic generator
 #           (no internet egress, no Event Hub needed).
-#   prod -> Azure Databricks. Bronze is produced from the real ENTSO-E API
-#           (Auto Loader) and the Azure Event Hub stream.
+#   prod -> Azure Databricks. Bronze is produced from the real ENTSO-E API (prices,
+#           landed as JSON) and a synthetic sensor producer streamed through the
+#           Azure Event Hub, then read back with Structured Streaming.
 #
 # This bundle deploys:
-#   1. silver_pipeline    (classic Job, Lab 4)   -- imperative notebooks + MERGE, per target.
-#   2. entsoe_silver_ldp  (declarative pipeline)  -- Lakeflow, Lab 7 version: silver + DQX
-#                                                    quality checks (valid / quarantine split) + gold.
-#   3. tests_job          (Job, Lab 7)            -- pytest unit tests run headless on serverless.
-#   4. gold_dim_job       (Job, Lab 7)            -- runs the pipeline, then builds the dim_date
-#                                                    calendar dimension (generated from a date range).
+#   1. silver_pipeline      (classic Job, Lab 4)     -- imperative notebooks + MERGE, per target.
+#   2. entsoe_silver_ldp    (declarative pipeline)    -- Lakeflow, Lab 7 version: silver + DQX
+#                                                        quality checks (valid / quarantine split) + gold.
+#   3. tests_job            (Job, Lab 7)              -- pytest unit tests run headless on serverless.
+#   4. gold_dim_job         (Job, Lab 7, dev only)     -- seeds bronze with the synthetic generator, runs
+#                                                        the pipeline, then builds the dim_date calendar
+#                                                        dimension (generated from a date range).
+#   5. entsoe_pipeline_prod (Job, Lab 3/7, prod only)  -- fetch_prices (ENTSO-E API -> landing) and
+#                                                        event_hub_task (synthetic sensor producer -> Event
+#                                                        Hub) run in parallel; ingest_sensor (Event Hub ->
+#                                                        bronze sensor_data) waits on event_hub_task; run_pipeline
+#                                                        (entsoe_silver_ldp) waits on fetch_prices + ingest_sensor;
+#                                                        build_dim_date runs last.
 # silver_pipeline and entsoe_silver_ldp are kept side by side as the "classic vs declarative" comparison.
 #
 # Deploy dev:      databricks bundle deploy -t dev
-# Run unit tests:  databricks bundle run tests_job          -t dev
-# Run pipeline:    databricks bundle run entsoe_silver_ldp  -t dev
-# Run gold + dim:  databricks bundle run gold_dim_job       -t dev
+# Run unit tests:  databricks bundle run tests_job            -t dev
+# Run pipeline:    databricks bundle run entsoe_silver_ldp    -t dev
+# Run gold + dim:  databricks bundle run gold_dim_job         -t dev
 # Deploy prod:     databricks bundle deploy -t prod
+# Run prod job:    databricks bundle run entsoe_pipeline_prod -t prod
 
 bundle:
   name: entsoe_silver
@@ -277,7 +286,7 @@ targets:
       bronze_schema: gabrielajaniszews786_bronze
       silver_schema: gabrielajaniszews786_silver
       gold_schema: gabrielajaniszews786_gold
-      warehouse_id: 3ed106620db591d9
+      warehouse_id: c0152a553a7a830f
     resources:
       pipelines:
         entsoe_silver_ldp:
@@ -297,7 +306,7 @@ targets:
           dataset_catalog: ${var.catalog}
       jobs:
         tests_job:
-          name: entsoe-unit-tests-dev
+          name: entsoe-unit-tests-prod
           tasks:
             - task_key: unit_tests
               spark_python_task:
@@ -309,39 +318,15 @@ targets:
                 environment_version: "3"
                 dependencies:
                   - pytest
-        # --- Lab 7: run the declarative pipeline (silver + DQX + gold), then build dim_date ---
-        # Bronze on prod is produced by the ingestion tasks in silver_pipeline (fetch / autoloader /
-        # event hub), so this job assumes bronze is already populated and just runs pipeline + dim_date.
-        gold_dim_job:
-          name: entsoe-gold-dim-prod
+        
+        entsoe_pipeline_prod:
+          name: entsoe-pipeline-prod
+          email_notifications:
+            on_failure:
+              - gabrielajaniszews786@softserve.academy
           tasks:
-            - task_key: run_pipeline
-              pipeline_task:
-                pipeline_id: ${resources.pipelines.entsoe_silver_ldp.id}
-            - task_key: build_dim_date
-              depends_on:
-                - task_key: run_pipeline
-              #existing_cluster_id: ${var.prod_cluster_id}
-              notebook_task:
-                notebook_path: ./Lab7/06_gold_dim_date.ipynb
-                base_parameters:
-                  catalog: ${var.catalog}
-                  gold_schema: ${var.gold_schema}
-                  silver_schema: ${var.silver_schema}
-                  dim_date_start: ${var.dim_date_start}
-                  dim_date_end: ${var.dim_date_end}
-
-        silver_pipeline:
-          name: entsoe-silver-pipeline-prod
-          schedule:
-            quartz_cron_expression: "0 0 6 * * ?"   # daily 06:00
-            pause_status: PAUSED
-            timezone_id: Europe/Warsaw
-          tasks:
-
-            # --- Bronze: prices from the ENTSO-E API, landed then Auto Loaded ---
+            # --- Bronze: prices from the ENTSO-E API ---
             - task_key: fetch_prices
-              #existing_cluster_id: ${var.prod_cluster_id}
               notebook_task:
                 notebook_path: ./Lab3/01_fetch_entsoe_prices_lab3.ipynb
                 base_parameters:
@@ -351,22 +336,16 @@ targets:
                   bidding_zone: "PL,DE_LU,FR,ES,CZ,SK,LT,PT"
                   secret_scope: default2
                   secret_key: gabriela-entsoe-token
-
-            - task_key: autoloader_prices
-              #existing_cluster_id: ${var.prod_cluster_id}
-              depends_on:
-                - task_key: fetch_prices
+            # --- Bronze: generating a stream for the Azure Event Hub ---
+            - task_key: event_hub_task
               notebook_task:
-                notebook_path: ./Lab3/02_autoloader_bronze_lab3.ipynb
+                notebook_path: ./Lab3/event_hub_task.ipynb
                 base_parameters:
-                  catalog: ${var.catalog}
-                  bronze_schema: ${var.bronze_schema}
-
+                  eh_name: gabrielajaniszews786_eventhub
+                  secret_scope: default2
+                  secret_key: eventhub-con-str-gabriela
             # --- Bronze: sensor stream from Azure Event Hub ---
-            # NOTE: 03_fetch_sensor_streaming must be parameterized (widgets:
-            #       eh_namespace, eh_name, secret_scope, secret_key) for these to apply.
             - task_key: ingest_sensor
-              #existing_cluster_id: ${var.prod_cluster_id}
               notebook_task:
                 notebook_path: ./Lab3/03_fetch_sensor_streaming_lab3.ipynb
                 base_parameters:
@@ -376,40 +355,25 @@ targets:
                   eh_name: gabrielajaniszews786_eventhub
                   secret_scope: default2
                   secret_key: eventhub-con-str-gabriela
-
-            # --- Silver ---
-            - task_key: silver_prices
-              #existing_cluster_id: ${var.prod_cluster_id}
               depends_on:
-                - task_key: autoloader_prices
-              notebook_task:
-                notebook_path: ./Lab4/03_silver_entsoe.ipynb
-                base_parameters:
-                  catalog: ${var.catalog}
-                  bronze_schema: ${var.bronze_schema}
-                  silver_schema: ${var.silver_schema}
-                  run_checks: "false"
-
-            - task_key: silver_sensor
-              #existing_cluster_id: ${var.prod_cluster_id}
+                - task_key: event_hub_task
+            # --- Silver + DQX + gold, all inside the declarative pipeline ---
+            - task_key: run_pipeline
+              pipeline_task:
+                pipeline_id: ${resources.pipelines.entsoe_silver_ldp.id}
               depends_on:
+                - task_key: fetch_prices
                 - task_key: ingest_sensor
-              notebook_task:
-                notebook_path: ./Lab4/04_silver_sensor_data.ipynb
-                base_parameters:
-                  catalog: ${var.catalog}
-                  bronze_schema: ${var.bronze_schema}
-                  silver_schema: ${var.silver_schema}
-                  run_checks: "false"
-
-            - task_key: silver_dim
-              #existing_cluster_id: ${var.prod_cluster_id}
+            # --- dim_date is generated from a date range (no fact scan), so it only needs the gold schema to exist.
+            - task_key: build_dim_date
               depends_on:
-                - task_key: ingest_sensor
+                - task_key: run_pipeline
               notebook_task:
-                notebook_path: ./Lab4/05_silver_dim_datacenter.ipynb
+                notebook_path: ./Lab7/06_gold_dim_date.ipynb
                 base_parameters:
                   catalog: ${var.catalog}
-                  bronze_schema: ${var.bronze_schema}
+                  gold_schema: ${var.gold_schema}
                   silver_schema: ${var.silver_schema}
-                  run_checks: "false"
+                  dim_date_start: ${var.dim_date_start}
+                  dim_date_end: ${var.dim_date_end}
+
