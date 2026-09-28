@@ -31,6 +31,11 @@
 
 # COMMAND ----------
 
+# MAGIC %md
+# MAGIC **Important note**: for prod, I am using prod-retail-rag-endpoint created by Yanquiel as we can have only one VS endpoint in the Trial version.
+
+# COMMAND ----------
+
 dbutils.widgets.dropdown("target_env", "dev", ["dev", "prod"], "Target environment")
 TARGET_ENV = dbutils.widgets.get("target_env")
 
@@ -44,7 +49,7 @@ ENV_CONFIG = {
     "prod": {  # shared Azure workspace (profile dbr_dev_trial, catalog is still dbr_dev)
         "catalog": "dbr_dev",
         "gold_schema": "gabrielajaniszews786_gold",
-        "docs_path": "/Workspace/Repos/gabrielajaniszewska@translite.pl/Databricks_Academy/GenAI/docs",
+        "docs_path": "/Workspace/Users/gabrielajaniszews786@softserve.academy/Databricks_Academy/GenAI/docs",
         "pdf_volume_path": "/Volumes/dbr_dev/gabrielajaniszews786_gold/docs_volume/MoP_Ref2_DDD_v3r4.pdf",
     },
 }
@@ -279,6 +284,24 @@ agent = create_agent(llm, tools, system_prompt=SYSTEM_PROMPT)
 
 # COMMAND ----------
 
+# Section 3: Assemble the agent
+from databricks_langchain import ChatDatabricks, UCFunctionToolkit, VectorSearchRetrieverTool
+from langchain.agents import create_agent
+
+llm = ChatDatabricks(endpoint=LLM_ENDPOINT, temperature=0.1)
+
+
+SYSTEM_PROMPT = (
+    "You are the ENTSO-E project assistant. "
+    "For questions about numbers (cost, consumption, PUE, zones), call the SQL tools. "
+    "For questions about how something was built or configured, call search_project_docs. "
+    "Always name the bidding zone and date range you used. If a zone is unknown, call list_bidding_zones first."
+)
+
+agent_no_context = create_agent(llm, system_prompt=SYSTEM_PROMPT)
+
+# COMMAND ----------
+
 # MAGIC %md Live question 1 - numbers (hits the SQL tool + governed table):
 
 # COMMAND ----------
@@ -292,11 +315,51 @@ for step in agent.stream(
 
 # COMMAND ----------
 
+for step in agent_no_context.stream(
+    {"messages": [{"role": "user",
+                   "content": "What was the total energy cost in the PL bidding zone in September 2026, and the average PUE?"}]},
+    stream_mode="values",
+):
+    step["messages"][-1].pretty_print()
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC The agent without context replied with made up data and claiming that it uses SQL tools. Even tough the knowledge cutoff date was said to be in December 2023, it tried to provide data for 2026.
+
+# COMMAND ----------
+
+# Comparing the data manually
+display(spark.sql(f"""SELECT
+                  bidding_zone,
+                  ROUND(SUM(cost_per_hour), 2) AS total_cost
+                  FROM {FACT_TABLE}
+                  WHERE bidding_zone = 'PL' AND date BETWEEN '2026-09-01' AND '2026-09-30'
+                  GROUP BY bidding_zone"""))
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC SELECT COUNT(*) FROM dbr_dev.gabrielajaniszews786_bronze.entsoe_prices;
+
+# COMMAND ----------
+
 # MAGIC %md Live question 2 - documentation (hits the RAG retriever):
 
 # COMMAND ----------
 
+# Question no. 2 with tools and context
 for step in agent.stream(
+    {"messages": [{"role": "user",
+                   "content": "How was row-level security implemented in the gold layer of this project?"}]},
+    stream_mode="values",
+):
+    step["messages"][-1].pretty_print()
+
+# COMMAND ----------
+
+# Comparing the agent without context
+for step in agent_no_context.stream(
     {"messages": [{"role": "user",
                    "content": "How was row-level security implemented in the gold layer of this project?"}]},
     stream_mode="values",
