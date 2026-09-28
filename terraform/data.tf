@@ -5,7 +5,7 @@ data "azurerm_resource_group" "rg" {
 }
 
 data "azurerm_databricks_workspace" "prod" {
-  name                = "dbr_dev"
+  name                = "dbr_dev_trial"
   resource_group_name = data.azurerm_resource_group.rg.name
 }
 
