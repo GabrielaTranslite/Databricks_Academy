@@ -17,15 +17,11 @@ inserts, updates and deletes are reflected incrementally in a target table (Part
 ## Files in this lab
 
 - `databricks_federation.ipynb` - the main notebook, Part A and Part B end to end.
-- `neon_datacenters_seed.sql` - run in Neon once to create and populate `public.dc_dim`.
-- `databricks_federation_datacenters.sql` - reference SQL for the federation objects and queries.
-- `lab10_cdc_scd2_datacenters.sql` - reference SQL for the CDC and SCD2 flow.
-- `Lab10_StepByStep_Instructions.docx` - a hands-on runbook for the whole lab.
+
 
 ## External database
 
-The external source is a free **Neon PostgreSQL** database. `neon_datacenters_seed.sql`
-creates `public.dc_dim`, a table of 15 columns describing data centers (id, operator,
+The external source is a free **Neon PostgreSQL** database. I have created a `public.dc_dim` table of 15 columns describing data centers (id, operator,
 location, IT power, power density, tier, PUE, cooling), with `dc_id` values aligned to the
 `site_id` values in the ENTSO-E fact table so the join is a clean one-to-one.
 
@@ -79,11 +75,10 @@ mechanics on a separate table, and does not change how `dim_site` is loaded.
 
 ## How to run
 
-1. In Neon, run `neon_datacenters_seed.sql` to create and populate `public.dc_dim`.
-2. In Databricks, open `databricks_federation.ipynb` on a serverless SQL warehouse (or a
+1. In Databricks, open `databricks_federation.ipynb` on a serverless SQL warehouse (or a
    Standard / Dedicated access-mode cluster). Set the `catalog` and `gold_schema` widgets.
-3. Run Part A cells: connection, foreign catalog, sanity query, and the join.
-4. Run Part B cells in order: recreate `cdc_table` with CDF, load the SCD2 target from Neon,
+2. Run Part A cells: connection, foreign catalog, sanity query, and the join.
+3. Run Part B cells in order: recreate `cdc_table` with CDF, load the SCD2 target from Neon,
    simulate the changes, inspect `table_changes`, then the two SCD2 steps, then verify.
 
 ## Done when
