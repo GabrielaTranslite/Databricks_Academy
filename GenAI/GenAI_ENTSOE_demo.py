@@ -7,21 +7,17 @@
 # MAGIC # GenAI on Databricks with Mosaic AI - Lab 11
 # MAGIC
 # MAGIC RAG + Agent + Model Serving over the **governed gold layer** of the datacenter energy-cost
-# MAGIC project (Labs 3-9). The agent has two skills:
+# MAGIC project (Labs 3-11). The agent has two skills:
 # MAGIC
 # MAGIC 1. **SQL tool** - a Unity Catalog function over `gold.consumption_hourly` (numbers).
-# MAGIC 2. **RAG retriever** - a Vector Search index over the project `README` files (documentation) + Entsoe Handboo.
+# MAGIC 2. **RAG retriever** - a Vector Search index over the project `README` files (documentation) + Entsoe Detailed Data Descriptions.
 # MAGIC
-# MAGIC The SQL tool reads the same table that already carries row-level security (`regional_filter`) and a column mask (`site_id_mask`), so the agent inherits
-# MAGIC them with **zero extra access-control code**.
-# MAGIC
-# MAGIC > No-code counterpart already exists: your **Genie space** over the gold layer is the low-code agent.
 # MAGIC
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 0. Config
+# MAGIC ## 0. Configuration
 # MAGIC
 
 # COMMAND ----------
@@ -35,6 +31,9 @@
 # MAGIC **Important note**: for prod, I am using prod-retail-rag-endpoint created by Yanquiel as we can have only one VS endpoint in the Trial version.
 
 # COMMAND ----------
+
+import mlflow
+mlflow.langchain.autolog()   # logs every prompt + response as a trace in Experiments
 
 dbutils.widgets.dropdown("target_env", "dev", ["dev", "prod"], "Target environment")
 TARGET_ENV = dbutils.widgets.get("target_env")
@@ -125,10 +124,9 @@ display(spark.sql(f"SELECT * FROM {CATALOG}.{GOLD_SCHEMA}.list_bidding_zones()")
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 2. The RAG retriever  (RAG slide)
-# MAGIC Corpus = the project `README` files. We chunk them by markdown section, land them in a Delta table with
-# MAGIC Change Data Feed on, then build a **Delta Sync** Vector Search index with managed embeddings
-# MAGIC (the only index type Free Edition supports).
+# MAGIC ## 2. RAG retriever
+# MAGIC Corpus = the project `README` files + PDF file (Detailed Data Descriptions). I chunked by markdown section, put in a Delta table with
+# MAGIC Change Data Feed on, then built a **Delta Sync** Vector Search index with managed embeddings.
 
 # COMMAND ----------
 
@@ -246,13 +244,15 @@ else:
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 3. Assemble the agent
-# MAGIC LLM + [SQL tools, RAG retriever] wired into a LangGraph ReAct agent. Run this live - it is fast.
+# MAGIC ## 4. Assembling the agents
+# MAGIC 1. LLM + [SQL tools, RAG retriever]
+# MAGIC
+# MAGIC 2. LLM only
 
 # COMMAND ----------
 
 # DBTITLE 1,Cell 14
-# Section 3: Assemble the agent
+# Assemble the agent with access to the tools
 from databricks_langchain import ChatDatabricks, UCFunctionToolkit, VectorSearchRetrieverTool
 from langchain.agents import create_agent
 
@@ -288,8 +288,12 @@ tools = uc_tools + [internal_docs_tool, external_reference_tool]
 
 SYSTEM_PROMPT = (
     "You are the ENTSO-E project assistant. "
-    "For questions about numbers (cost, consumption, PUE, zones), call the SQL tools. "
-    "For questions about how something was built or configured, call search_project_docs. "
+    "For questions about numbers (cost, consumption, PUE, zones), call the SQL tools "
+    "(get_energy_cost, list_bidding_zones). "
+    "For questions about how THIS project was built or configured (pipeline, gold layer, "
+    "governance, tests, alerts), call search_internal_docs. "
+    "For questions about ENTSO-E domain terminology or definitions "
+    "(bidding zone, external constraint, aFRR/mFRR, imbalance settlement), call search_entsoe_glossary. "
     "Always name the bidding zone and date range you used. If a zone is unknown, call list_bidding_zones first."
 )
 
@@ -297,7 +301,7 @@ agent = create_agent(llm, tools, system_prompt=SYSTEM_PROMPT)
 
 # COMMAND ----------
 
-# Section 3: Assemble the no context agent
+# Assemble the no context agent
 from databricks_langchain import ChatDatabricks, UCFunctionToolkit, VectorSearchRetrieverTool
 from langchain.agents import create_agent
 
@@ -306,16 +310,25 @@ llm = ChatDatabricks(endpoint=LLM_ENDPOINT, temperature=0.1)
 
 SYSTEM_PROMPT = (
     "You are the ENTSO-E project assistant. "
-    "For questions about numbers (cost, consumption, PUE, zones), call the SQL tools. "
-    "For questions about how something was built or configured, call search_project_docs. "
+    "For questions about numbers (cost, consumption, PUE, zones), call the SQL tools "
+    "(get_energy_cost, list_bidding_zones). "
+    "For questions about how THIS project was built or configured (pipeline, gold layer, "
+    "governance, tests, alerts), call search_internal_docs. "
+    "For questions about ENTSO-E domain terminology or definitions "
+    "(bidding zone, external constraint, aFRR/mFRR, imbalance settlement), call search_entsoe_glossary. "
     "Always name the bidding zone and date range you used. If a zone is unknown, call list_bidding_zones first."
 )
-
 agent_no_context = create_agent(llm, system_prompt=SYSTEM_PROMPT)
 
 # COMMAND ----------
 
-# MAGIC %md Live question 1 - numbers (hits the SQL tool + governed table):
+# MAGIC %md
+# MAGIC ## 5. Evaluation
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### Live question 1 - numbers (hits the SQL tool + governed table):
 
 # COMMAND ----------
 
@@ -369,7 +382,8 @@ display(spark.sql(f"""SELECT
 
 # COMMAND ----------
 
-# MAGIC %md Live question 2 - documentation (hits the RAG retriever):
+# MAGIC %md 
+# MAGIC ### Live question 2 - documentation (hits the RAG retriever):
 
 # COMMAND ----------
 
@@ -380,6 +394,11 @@ for step in agent.stream(
     stream_mode="values",
 ):
     step["messages"][-1].pretty_print()
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC This is a correct, data-grounded answer to this question.
 
 # COMMAND ----------
 
@@ -394,61 +413,14 @@ for step in agent_no_context.stream(
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 4. Governance punchline  (Governance slide)
-# MAGIC The SQL tool reads `consumption_hourly`, which already has a row filter and a column mask.
-# MAGIC The agent inherits them - no `if/else` in the agent code.
-
-# COMMAND ----------
-
-# Shows the ROW FILTER (regional_filter) and COLUMN MASK (site_id_mask) on the very table the tool queries.
-display(spark.sql(f"DESCRIBE EXTENDED {FACT_TABLE}"))
+# MAGIC This answer is incorrect. The model clearly hallucinates - mentions "DE" bidding zone and drifts off when trying to search project documents (it doesn't have access to the tools).
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 5. Log, register to Unity Catalog, deploy to Model Serving  (Model Serving slide)
-# MAGIC **PRE-RUN before the talk** - deployment takes several minutes. During the talk, show the endpoint
-# MAGIC that is already live (or the AI Playground), do not deploy on stage.
-# MAGIC
-# MAGIC The recommended path wraps the agent in MLflow's `ResponsesAgent` in a separate `agent.py`, logs it
-# MAGIC **as code** with its resources declared (so serving gets automatic auth), registers it to UC, then
-# MAGIC `agents.deploy()`. Skeleton below - adapt to your workspace.
-
-# COMMAND ----------
-
-import mlflow
-from mlflow.models.resources import (
-    DatabricksServingEndpoint, DatabricksFunction, DatabricksVectorSearchIndex,
-)
-from databricks import agents
-
-# Declaring resources lets Model Serving mint short-lived credentials for exactly these objects.
-resources = [
-    DatabricksServingEndpoint(endpoint_name=LLM_ENDPOINT),
-    DatabricksServingEndpoint(endpoint_name=EMBEDDING_ENDPOINT),
-    DatabricksVectorSearchIndex(index_name=VS_INDEX),
-    DatabricksFunction(function_name=f"{CATALOG}.{GOLD_SCHEMA}.get_energy_cost"),
-    DatabricksFunction(function_name=f"{CATALOG}.{GOLD_SCHEMA}.list_bidding_zones"),
-]
-
-with mlflow.start_run(run_name="entsoe_support_agent"):
-    logged = mlflow.pyfunc.log_model(
-        name="agent",
-        python_model="agent.py",   # <- a ResponsesAgent wrapper around the graph above; see Databricks "author agent" docs
-        resources=resources,
-        pip_requirements=["databricks-langchain", "databricks-vectorsearch", "langgraph", "mlflow"],
-    )
-
-uc_model = mlflow.register_model(model_uri=logged.model_uri, name=UC_MODEL)
-agents.deploy(UC_MODEL, uc_model.version, scale_to_zero=True)  # CPU + scale-to-zero on Free Edition
-print("Deployed:", UC_MODEL, "v", uc_model.version)
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## 6. Evaluate  (Evaluation slide)
+# MAGIC ## 7. Evaluation with MLFlow
 # MAGIC A tiny golden set (numbers + docs). MLflow 3 runs built-in LLM judges so you can gate prompt changes
-# MAGIC in CI instead of eyeballing. Run live - it is quick and visual.
+# MAGIC in CI.
 
 # COMMAND ----------
 
@@ -462,12 +434,23 @@ def predict_fn(messages):
 eval_data = [
     {"inputs": {"messages": [{"role": "user", "content": "Which bidding zones are in the gold layer?"}]},
      "expectations": {"expected_facts": ["PL"]}},
-    {"inputs": {"messages": [{"role": "user", "content": "What was the total energy cost in PL in August 2026?"}]},
-     "expectations": {"expected_facts": ["a numeric total cost for PL"]}},
+    {"inputs": {"messages": [{"role": "user", "content": "What was the total energy cost in CZ in September 2026?"}]},
+     "expectations": {"expected_facts": ["a numeric total cost for CZ"]}},
     {"inputs": {"messages": [{"role": "user", "content": "How is dim_date generated in this project?"}]},
      "expectations": {"expected_facts": ["generated from a date range, not scanned from the fact"]}},
     {"inputs": {"messages": [{"role": "user", "content": "What alert monitors data volume, and at what threshold?"}]},
      "expectations": {"expected_facts": ["fewer than 192 rows per day (8 sites x 24 hours)"]}},
+    {"inputs": {"messages": [{"role": "user", "content": "What was the average PUE in the PL bidding zone in September 2026?"}]},
+     "expectations": {"expected_facts": ["an average PUE for PL of roughly 1.3"]}},
+    {"inputs": {"messages": [{"role": "user", "content": "How many bidding zones have data in the gold layer?"}]},
+     "expectations": {"expected_facts": ["eight bidding zones (PL, DE_LU, FR, ES, CZ, SK, LT, PT)"]}},
+    {"inputs": {"messages": [{"role": "user", "content": "How is data quality enforced in the silver layer?"}]},
+     "expectations": {"expected_facts": ["DQX checks split rows into valid and quarantine, invalid rows are quarantined"]}},
+    {"inputs": {"messages": [{"role": "user", "content": "Where does the sensor data come from before it reaches the bronze layer?"}]},
+     "expectations": {"expected_facts": ["an Azure Event Hub stream consumed via the Kafka protocol"]}},
+    {"inputs": {"messages": [{"role": "user", "content": "According to the ENTSO-E data documentation, what is an external constraint?"}]}, "expectations": {"expected_facts": ["the maximum import and/or export constraints of a given bidding zone", "not associated with any grid elements"]}},
+    {"inputs": {"messages": [{"role": "user", "content": "In the ENTSO-E reference documentation, what does 'downward regulation' mean?"}]}, "expectations": {"expected_facts": ["a decrease in active power output or an increase in active power consumption"]}},
+   
 ]
 
 results = mlflow.genai.evaluate(
@@ -480,9 +463,15 @@ print("Open the MLflow run to see per-question judge scores.")
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Recap - one project, the whole title
-# MAGIC - **RAG**  -> Vector Search over the project READMEs
-# MAGIC - **Agents** -> UC-function SQL tools + retriever in one LangGraph agent
-# MAGIC - **Governance** -> RLS + CLS inherited from `consumption_hourly`, no extra code
-# MAGIC - **Model Serving** -> registered in UC, deployed as a scale-to-zero endpoint
-# MAGIC - **Evaluation** -> MLflow 3 LLM judges as a quality gate
+# MAGIC ## 8. Metadata filtering
+
+# COMMAND ----------
+
+# Metadata filtering: same query, two doc_type-filtered tools -> different corpora should be used
+query = "What is a bidding zone?"
+
+print("=== search_internal_docs (filter: doc_type = internal_docs) ===")
+print(internal_docs_tool.invoke(query))
+
+print("\n=== search_entsoe_glossary (filter: doc_type = external_reference) ===")
+print(external_reference_tool.invoke(query))
