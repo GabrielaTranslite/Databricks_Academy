@@ -8,7 +8,7 @@ def clean_prices(df):
     Handles conversion from string types (bronze) to proper types (silver).
     Invalid values are converted to null.
     """
-    return (df
+    df = (df
         # Convert price from string to decimal, invalid values become null
         .withColumn("price", F.expr("try_cast(price as decimal(10,2))"))
         # Convert timestamps from string to timestamp, invalid values become null
@@ -16,6 +16,16 @@ def clean_prices(df):
         .withColumn("ingestion_ts",        F.try_to_timestamp("ingestion_ts"))
         .withColumn("silver_processed_ts", F.current_timestamp())
     )
+    
+    # De-duplicate: ENTSO-E responses / repeated fetches yield several identical
+    # copies of the same (bidding_zone, timestamp_utc). Keep one (latest ingestion)
+    # so the is_unique check guards the data instead of quarantining every copy.
+    w = Window.partitionBy("bidding_zone", "timestamp_utc") \
+              .orderBy(F.col("ingestion_ts").desc_nulls_last())
+    return (df
+        .withColumn("_rn", F.row_number().over(w))
+        .filter(F.col("_rn") == 1)
+        .drop("_rn"))
 
 
 def clean_sensor(df):
