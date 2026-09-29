@@ -193,10 +193,11 @@ display(spark.table(DOCS_TABLE).select("doc_name", "section", "doc_type"))
 # COMMAND ----------
 
 from databricks.vector_search.client import VectorSearchClient
+import time
 
 vsc = VectorSearchClient(disable_notice=True)
 
-# Create the endpoint once (skip/ignore if it already exists).
+# Create the index once; if it already exists, trigger a re-sync instead.
 try:
     index = vsc.create_delta_sync_index_and_wait(
         endpoint_name=VS_ENDPOINT,
@@ -212,10 +213,22 @@ try:
 except Exception as e:
     if "already exists" in str(e).lower():
         index = vsc.get_index(endpoint_name=VS_ENDPOINT, index_name=VS_INDEX)
-        index.sync()
-        print(f"Index already existed - triggered a re-sync from {DOCS_TABLE} instead.")
+        try:
+            index.sync()
+            print(f"Index already existed - triggered a re-sync from {DOCS_TABLE}.")
+        except Exception as sync_err:
+            if "not ready to sync" in str(sync_err).lower():
+                print("A sync is already in progress - skipping, it will finish on its own.")
+            else:
+                raise
     else:
         raise
+
+# Wait until the index is queryable (runs whether it was just created or re-synced).
+while not index.describe()["status"].get("ready", False):
+    print("Waiting for index to become ready...")
+    time.sleep(15)
+print("Index is ready.")
 
 # COMMAND ----------
 
@@ -284,7 +297,7 @@ agent = create_agent(llm, tools, system_prompt=SYSTEM_PROMPT)
 
 # COMMAND ----------
 
-# Section 3: Assemble the agent
+# Section 3: Assemble the no context agent
 from databricks_langchain import ChatDatabricks, UCFunctionToolkit, VectorSearchRetrieverTool
 from langchain.agents import create_agent
 
@@ -329,6 +342,32 @@ for step in agent_no_context.stream(
 
 # COMMAND ----------
 
+# MAGIC %sql
+# MAGIC -- 2. Silver valid: czy przechodzą DQX?
+# MAGIC SELECT MIN(timestamp_utc), MAX(timestamp_utc), COUNT(*) 
+# MAGIC FROM dbr_dev.gabrielajaniszews786_silver.valid_prices 
+# MAGIC WHERE MONTH(timestamp_utc) = 9;
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC -- 3. Silver quarantine: ile wrześniowych wpadło do kwarantanny i dlaczego?
+# MAGIC SELECT _errors, COUNT(*) 
+# MAGIC FROM dbr_dev.gabrielajaniszews786_silver.quarantine_prices 
+# MAGIC WHERE MONTH(timestamp_utc) = 9
+# MAGIC GROUP BY _errors 
+# MAGIC ORDER BY 2 DESC;
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC -- 4. Gold: czy w ogóle dotarło do consumption_hourly?
+# MAGIC SELECT MIN(date), MAX(date), COUNT(*) 
+# MAGIC FROM dbr_dev.gabrielajaniszews786_gold.consumption_hourly 
+# MAGIC WHERE MONTH(date) = 9;
+
+# COMMAND ----------
+
 # Comparing the data manually
 display(spark.sql(f"""SELECT
                   bidding_zone,
@@ -336,6 +375,14 @@ display(spark.sql(f"""SELECT
                   FROM {FACT_TABLE}
                   WHERE bidding_zone = 'PL' AND date BETWEEN '2026-09-01' AND '2026-09-30'
                   GROUP BY bidding_zone"""))
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC SELECT bidding_zone, MIN(timestamp_utc), MAX(timestamp_utc), COUNT(*)
+# MAGIC FROM dbr_dev.gabrielajaniszews786_silver.valid_prices
+# MAGIC GROUP BY bidding_zone
+# MAGIC ORDER BY bidding_zone;
 
 # COMMAND ----------
 
