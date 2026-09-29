@@ -342,32 +342,6 @@ for step in agent_no_context.stream(
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- 2. Silver valid: czy przechodzą DQX?
-# MAGIC SELECT MIN(timestamp_utc), MAX(timestamp_utc), COUNT(*) 
-# MAGIC FROM dbr_dev.gabrielajaniszews786_silver.valid_prices 
-# MAGIC WHERE MONTH(timestamp_utc) = 9;
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC -- 3. Silver quarantine: ile wrześniowych wpadło do kwarantanny i dlaczego?
-# MAGIC SELECT _errors, COUNT(*) 
-# MAGIC FROM dbr_dev.gabrielajaniszews786_silver.quarantine_prices 
-# MAGIC WHERE MONTH(timestamp_utc) = 9
-# MAGIC GROUP BY _errors 
-# MAGIC ORDER BY 2 DESC;
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC -- 4. Gold: czy w ogóle dotarło do consumption_hourly?
-# MAGIC SELECT MIN(date), MAX(date), COUNT(*) 
-# MAGIC FROM dbr_dev.gabrielajaniszews786_gold.consumption_hourly 
-# MAGIC WHERE MONTH(date) = 9;
-
-# COMMAND ----------
-
 # Comparing the data manually
 display(spark.sql(f"""SELECT
                   bidding_zone,
@@ -378,16 +352,20 @@ display(spark.sql(f"""SELECT
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT bidding_zone, MIN(timestamp_utc), MAX(timestamp_utc), COUNT(*)
-# MAGIC FROM dbr_dev.gabrielajaniszews786_silver.valid_prices
-# MAGIC GROUP BY bidding_zone
-# MAGIC ORDER BY bidding_zone;
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC SELECT COUNT(*) FROM dbr_dev.gabrielajaniszews786_bronze.entsoe_prices;
+# MAGIC %md
+# MAGIC ### With vs without retrieval
+# MAGIC
+# MAGIC Same question to both agents: *"What was the total energy cost in the PL bidding zone in September 2026, and the average PUE?"*
+# MAGIC
+# MAGIC | Metric        | With context (SQL tools + RAG) | Without context (LLM only) |
+# MAGIC |---------------|--------------------------------|----------------------------|
+# MAGIC | Total cost    | 79,855.98 EUR                  | ~1.23 billion EUR          |
+# MAGIC | Average PUE   | 1.305                          | 1.57                       |
+# MAGIC | Hours covered | 674                            | not reported               |
+# MAGIC | Source        | `gold.consumption_hourly`      | model's training memory    |
+# MAGIC | Grounded      | Yes                            | No (hallucinated)          |
+# MAGIC
+# MAGIC **Observation:** without access to the gold tables the agent fabricates the answer. It is wrong by roughly four orders of magnitude on cost, invents a PUE, and even narrates calling SQL tools it cannot reach ("According to the SQL tools..."). It also reveals the failure mode itself, citing a "knowledge cutoff date of December 2023" – proof it is answering from training data, not from the data platform. The grounded agent, by contrast, returns figures traceable to `consumption_hourly`. This contrast is the core justification for the retrieval +
 
 # COMMAND ----------
 
