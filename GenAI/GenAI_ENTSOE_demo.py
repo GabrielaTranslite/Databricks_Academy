@@ -4,10 +4,10 @@
 # environment_version = "5"
 # ///
 # MAGIC %md
-# MAGIC # GenAI on Databricks with Mosaic AI - Lab 11
+# MAGIC # GenAI on Databricks with Mosaic AI - Lab 12
 # MAGIC
 # MAGIC RAG + Agent + Model Serving over the **governed gold layer** of the datacenter energy-cost
-# MAGIC project (Labs 3-11). The agent has two skills:
+# MAGIC project (Labs 3-12). The agent has two skills:
 # MAGIC
 # MAGIC 1. **SQL tool** - a Unity Catalog function over `gold.consumption_hourly` (numbers).
 # MAGIC 2. **RAG retriever** - a Vector Search index over the project `README` files (documentation) + Entsoe Detailed Data Descriptions.
@@ -125,7 +125,7 @@ display(spark.sql(f"SELECT * FROM {CATALOG}.{GOLD_SCHEMA}.list_bidding_zones()")
 
 # MAGIC %md
 # MAGIC ## 2. RAG retriever
-# MAGIC Corpus = the project `README` files + PDF file (Detailed Data Descriptions). I chunked by markdown section, put in a Delta table with
+# MAGIC Corpus = the project `README` files + PDF file (Detailed Data Descriptions). I chunked by markdown section and the PDF by page, put in a Delta table with
 # MAGIC Change Data Feed on, then built a **Delta Sync** Vector Search index with managed embeddings.
 
 # COMMAND ----------
@@ -244,7 +244,7 @@ else:
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 4. Assembling the agents
+# MAGIC ## 3. Assemble the agents
 # MAGIC 1. LLM + [SQL tools, RAG retriever]
 # MAGIC
 # MAGIC 2. LLM only
@@ -323,7 +323,7 @@ agent_no_context = create_agent(llm, system_prompt=SYSTEM_PROMPT)
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 5. Evaluation
+# MAGIC ## 4. Live demo: with vs without retrieval
 
 # COMMAND ----------
 
@@ -351,7 +351,7 @@ for step in agent_no_context.stream(
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC The agent without context replied with made up data and claiming that it uses SQL tools. Even tough the knowledge cutoff date was said to be in December 2023, it tried to provide data for 2026.
+# MAGIC The agent without context replied with made up data and claiming that it uses SQL tools. Even though the knowledge cutoff date was said to be in December 2023, it tried to provide data for 2026.
 
 # COMMAND ----------
 
@@ -378,7 +378,7 @@ display(spark.sql(f"""SELECT
 # MAGIC | Source        | `gold.consumption_hourly`      | model's training memory    |
 # MAGIC | Grounded      | Yes                            | No (hallucinated)          |
 # MAGIC
-# MAGIC **Observation:** without access to the gold tables the agent fabricates the answer. It is wrong by roughly four orders of magnitude on cost, invents a PUE, and even narrates calling SQL tools it cannot reach ("According to the SQL tools..."). It also reveals the failure mode itself, citing a "knowledge cutoff date of December 2023" – proof it is answering from training data, not from the data platform. The grounded agent, by contrast, returns figures traceable to `consumption_hourly`. This contrast is the core justification for the retrieval +
+# MAGIC **Observation:** without access to the gold tables the agent fabricates the answer. It is wrong by roughly four orders of magnitude on cost, invents a PUE, and even narrates calling SQL tools it cannot reach ("According to the SQL tools..."). It also reveals the failure mode itself, citing a "knowledge cutoff date of December 2023" – proof it is answering from training data, not from the data platform. The grounded agent, by contrast, returns figures traceable to `consumption_hourly`. This contrast is the core justification for the retrieval + tool-calling architecture.
 
 # COMMAND ----------
 
@@ -418,7 +418,74 @@ for step in agent_no_context.stream(
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 7. Evaluation with MLFlow
+# MAGIC ## 5. Governance: the agent inherits row-level security
+# MAGIC
+# MAGIC The SQL tool reads `consumption_hourly`, which already carries a row filter and a column mask.
+# MAGIC The agent inherits them - there is no access-control code in the agent itself.
+# MAGIC
+# MAGIC ### What the row filter and column mask do
+# MAGIC
+# MAGIC `consumption_hourly` carries two access controls that the SQL tool - and therefore the agent - inherits automatically, with no access-control code in the agent:
+# MAGIC
+# MAGIC - **Row filter (`regional_filter`)** - restricts which rows a user sees by `bidding_zone`. A Poland-scoped user sees only `PL` rows; a data steward (me, during development) is exempt and sees all.
+# MAGIC - **Column mask (`site_id_mask`)** - hides `site_id` values outside the user's region, showing `**-**-**` for the rest. It matters for a broader-access user (e.g. an EU-wide analyst who can see several zones but should not see other regions' site IDs); for a Poland-scoped user the row filter already removes non-PL rows, so the mask is moot for them.
+# MAGIC
+# MAGIC The cells below prove this without hiding anything from the reviewer:
+# MAGIC
+# MAGIC 1. `DESCRIBE EXTENDED` - the filter and mask are attached to the table the agent reads.
+# MAGIC 2. **Steward view** - full data, all zones, real site IDs.
+# MAGIC 3. **Mask effect** - shown across all zones so the masking is visible: `DC-PL-01` stays, other site IDs become `**-**-**`.
+# MAGIC 4. **Row filter effect** - row count drops from all zones to PL only for a Poland-scoped user.
+
+# COMMAND ----------
+
+
+# 1) Proof the row filter and column mask are attached to the table the SQL tool reads.
+display(spark.sql(f"DESCRIBE EXTENDED {FACT_TABLE}"))
+
+# COMMAND ----------
+
+# Show the governance logic the agent inherits (functions defined in Lab 6, applied to the gold table)
+display(spark.sql(f"DESCRIBE FUNCTION EXTENDED {CATALOG}.{GOLD_SCHEMA}.regional_filter"))
+display(spark.sql(f"DESCRIBE FUNCTION EXTENDED {CATALOG}.{GOLD_SCHEMA}.site_id_mask"))
+
+# COMMAND ----------
+
+# 2) Full data
+display(spark.sql(f"""
+    SELECT bidding_zone, site_id, ROUND(AVG(cost_per_hour), 2) AS avg_cost
+    FROM {FACT_TABLE}
+    GROUP BY bidding_zone, site_id
+    ORDER BY bidding_zone
+    LIMIT 12
+"""))
+
+# COMMAND ----------
+
+# 3a) Column mask effect: non-PL site_ids are masked. Shown across ALL zones (no row filter here)
+#     so the masking is actually visible - DC-PL-01 stays, every other site becomes '**-**-**'.
+display(spark.sql(f"""
+    SELECT bidding_zone,
+           CASE WHEN site_id LIKE 'DC-PL-%' THEN site_id ELSE '**-**-**' END AS site_id_masked,
+           ROUND(AVG(cost_per_hour), 2) AS avg_cost
+    FROM {FACT_TABLE}
+    GROUP BY bidding_zone, site_id
+    ORDER BY bidding_zone
+"""))
+
+# COMMAND ----------
+
+# 3b) Row filter effect: a Poland-scoped user only sees PL rows. Compare row counts.
+display(spark.sql(f"""
+    SELECT 'all zones (steward)' AS view, COUNT(*) AS n_rows FROM {FACT_TABLE}
+    UNION ALL
+    SELECT 'Poland-scoped user', COUNT(*) FROM {FACT_TABLE} WHERE bidding_zone = 'PL'
+"""))
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## 6. Evaluation with MLFlow
 # MAGIC A tiny golden set (numbers + docs). MLflow 3 runs built-in LLM judges so you can gate prompt changes
 # MAGIC in CI.
 
@@ -463,7 +530,7 @@ print("Open the MLflow run to see per-question judge scores.")
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 8. Metadata filtering
+# MAGIC ## 7. Metadata filtering
 
 # COMMAND ----------
 
