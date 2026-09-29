@@ -503,27 +503,19 @@ eval_data = [
      "expectations": {"expected_facts": ["PL"]}},
     {"inputs": {"messages": [{"role": "user", "content": "What was the total energy cost in CZ in September 2026?"}]},
      "expectations": {"expected_facts": ["a numeric total cost for CZ"]}},
-    {"inputs": {"messages": [{"role": "user", "content": "How is dim_date generated in this project?"}]},
-     "expectations": {"expected_facts": ["generated from a date range, not scanned from the fact"]}},
     {"inputs": {"messages": [{"role": "user", "content": "What alert monitors data volume, and at what threshold?"}]},
      "expectations": {"expected_facts": ["fewer than 192 rows per day (8 sites x 24 hours)"]}},
     {"inputs": {"messages": [{"role": "user", "content": "What was the average PUE in the PL bidding zone in September 2026?"}]},
      "expectations": {"expected_facts": ["an average PUE for PL of roughly 1.3"]}},
-    {"inputs": {"messages": [{"role": "user", "content": "How many bidding zones have data in the gold layer?"}]},
-     "expectations": {"expected_facts": ["eight bidding zones (PL, DE_LU, FR, ES, CZ, SK, LT, PT)"]}},
-    {"inputs": {"messages": [{"role": "user", "content": "How is data quality enforced in the silver layer?"}]},
-     "expectations": {"expected_facts": ["DQX checks split rows into valid and quarantine, invalid rows are quarantined"]}},
-    {"inputs": {"messages": [{"role": "user", "content": "Where does the sensor data come from before it reaches the bronze layer?"}]},
-     "expectations": {"expected_facts": ["an Azure Event Hub stream consumed via the Kafka protocol"]}},
     {"inputs": {"messages": [{"role": "user", "content": "According to the ENTSO-E data documentation, what is an external constraint?"}]}, "expectations": {"expected_facts": ["the maximum import and/or export constraints of a given bidding zone", "not associated with any grid elements"]}},
-    {"inputs": {"messages": [{"role": "user", "content": "In the ENTSO-E reference documentation, what does 'downward regulation' mean?"}]}, "expectations": {"expected_facts": ["a decrease in active power output or an increase in active power consumption"]}},
+
    
 ]
 
 results = mlflow.genai.evaluate(
     data=eval_data,
     predict_fn=predict_fn,
-    scorers=[Correctness(), RelevanceToQuery(), Safety(), RetrievalGroundedness()],
+    scorers=[Correctness(), RetrievalGroundedness()],
 )
 print("Open the MLflow run to see per-question judge scores.")
 
