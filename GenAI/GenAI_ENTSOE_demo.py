@@ -351,7 +351,7 @@ for step in agent_no_context.stream(
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC The agent without context replied with made up data and claiming that it uses SQL tools. Even though the knowledge cutoff date was said to be in December 2023, it tried to provide data for 2026.
+# MAGIC The agent without context replied with made up data and claiming that it uses SQL tools. However, it added a comment about its limitations: "Please note that these values are fictional and used only for demonstration purposes. Actual values would depend on the real data provided by the SQL tools."
 
 # COMMAND ----------
 
@@ -372,8 +372,8 @@ display(spark.sql(f"""SELECT
 # MAGIC
 # MAGIC | Metric        | With context (SQL tools + RAG) | Without context (LLM only) |
 # MAGIC |---------------|--------------------------------|----------------------------|
-# MAGIC | Total cost    | 79,855.98 EUR                  | ~1.23 billion EUR          |
-# MAGIC | Average PUE   | 1.305                          | 1.57                       |
+# MAGIC | Total cost    | 79,855.98 EUR                  | ~100 milion EUR            |
+# MAGIC | Average PUE   | 1.305                          | 1.8                        |
 # MAGIC | Hours covered | 674                            | not reported               |
 # MAGIC | Source        | `gold.consumption_hourly`      | model's training memory    |
 # MAGIC | Grounded      | Yes                            | No (hallucinated)          |
@@ -413,7 +413,7 @@ for step in agent_no_context.stream(
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC This answer is incorrect. The model clearly hallucinates - mentions "DE" bidding zone and drifts off when trying to search project documents (it doesn't have access to the tools).
+# MAGIC This answer is incorrect. The model clearly hallucinates and tries to infer some information from the data.
 
 # COMMAND ----------
 
