@@ -7,7 +7,7 @@
 # MAGIC # GenAI on Databricks with Mosaic AI - Lab 12
 # MAGIC
 # MAGIC RAG + Agent + Model Serving over the **governed gold layer** of the datacenter energy-cost
-# MAGIC project (Labs 3-12). The agent has two skills:
+# MAGIC project (Labs 3-11). The agent has two skills:
 # MAGIC
 # MAGIC 1. **SQL tool** - a Unity Catalog function over `gold.consumption_hourly` (numbers).
 # MAGIC 2. **RAG retriever** - a Vector Search index over the project `README` files (documentation) + Entsoe Detailed Data Descriptions.
@@ -368,7 +368,7 @@ display(spark.sql(f"""SELECT
 # MAGIC %md
 # MAGIC ### With vs without retrieval
 # MAGIC
-# MAGIC Same question to both agents: *"What was the total energy cost in the PL bidding zone in September 2026, and the average PUE?"*
+# MAGIC Same question to both agents: *"What was the total energy cost in the PL bidding zone in September 2026, and the average PUE?"*. Answers might vary as LLMs are non-deterministic.
 # MAGIC
 # MAGIC | Metric        | With context (SQL tools + RAG) | Without context (LLM only) |
 # MAGIC |---------------|--------------------------------|----------------------------|
