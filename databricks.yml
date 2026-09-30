@@ -376,4 +376,13 @@ targets:
                   silver_schema: ${var.silver_schema}
                   dim_date_start: ${var.dim_date_start}
                   dim_date_end: ${var.dim_date_end}
+            - task_key: build_dc_map
+              depends_on:
+                - task_key: run_pipeline
+              notebook_task:
+                notebook_path: ./Lab7/08_gold_dc_map.ipynb
+                base_parameters:
+                  catalog: ${var.catalog}
+                  bronze_schema: ${var.bronze_schema}
+                  gold_schema: ${var.gold_schema}
 

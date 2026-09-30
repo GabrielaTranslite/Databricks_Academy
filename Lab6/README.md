@@ -46,28 +46,28 @@ available to the charts and filters).
 
 ### 3. Governance – grants + RLS + CLS  (`Lab6/07_RLS_CLS`)
 
-- **Group:** workspace group **`Poland`** (the user is a member; membership checked with `is_member`).
 - **Grant permissions to objects:**
   ```sql
   GRANT SELECT ON TABLE consumption_hourly TO `account users`;
   ```
   Note: the `GRANT` targets the account-level group **`account users`**, because Unity Catalog `GRANT`
-  requires an **account-level** principal – a **workspace** group (`Poland`) cannot be a grant target.
-  (`Poland` is still used for RLS/CLS, where `is_member` does work with workspace groups.)
-- **Row-Level Security (RLS):** `regional_filter(bidding_zone)` returns BOOLEAN –
-  a user who is a member of **both `Poland` and `admins`** sees only `PL` rows; everyone else sees none.
-  Applied with:
+  requires an **account-level** principal.
+- **Row-Level Security (RLS):** `regional_filter(bidding_zone)` returns BOOLEAN. Data stewards
+  (members of the `admins` account group, and the project owner via a `current_user()` exemption) are
+  exempt and see all rows; every other user sees only `PL` rows. Applied with:
   ```sql
   ALTER MATERIALIZED VIEW consumption_hourly SET ROW FILTER regional_filter ON (bidding_zone);
   ```
   (`ALTER MATERIALIZED VIEW`, not `ALTER TABLE`, because the gold object is a materialized view.)
-- **Column-Level Security (CLS):** `site_id_mask(site_id)` masks non-PL `site_id` to `'**-**-**'` for
-  `Poland` members (PL sites shown in full; other users see everything). Applied with:
+- **Column-Level Security (CLS):** `site_id_mask(site_id)` returns the real `site_id` for exempt
+  stewards and for `PL` sites (`DC-PL-%`); every other `site_id` is masked to `'**-**-**'`. Applied with:
   ```sql
   ALTER MATERIALIZED VIEW consumption_hourly ALTER COLUMN site_id SET MASK site_id_mask;
   ```
+- Membership is checked with `is_account_group_member` (Unity Catalog groups are account-level), plus a
+  `current_user()` exemption so the owner keeps full visibility during development.
 - Governance is applied **outside** the pipeline and was verified to survive a data full-refresh.
-- **Note:** the notebook also contains `DROP ROW FILTER` / `DROP MASK` cells (used to test the
+- **Note:** the notebook also contains `DROP ROW FILTER` / `DROP MASK` cells (used to show the
   before/after effect). To leave RLS/CLS **enforced** in the final state, do **not** run those drop
   cells – or re-apply the `SET ROW FILTER` / `SET MASK` at the end.
 
