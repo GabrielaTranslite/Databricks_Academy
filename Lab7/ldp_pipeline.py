@@ -46,9 +46,12 @@ def prices_bronze():
     return df
 
 # Creating a streaming source from events data (sensors)
+
 @dp.table(name = TABLES["sensor_bronze"])
 def sensor_bronze():
-    df = spark.readStream.table(f"{CATALOG}.{BRONZE_SCHEMA}.sensor_data")
+    df = (spark.readStream
+          .option("ignoreDeletes", "true")
+          .table(f"{CATALOG}.{BRONZE_SCHEMA}.sensor_data"))
     return df
 
 
