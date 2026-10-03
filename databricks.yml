@@ -387,8 +387,19 @@ targets:
                   catalog: ${var.catalog}
                   bronze_schema: ${var.bronze_schema}
                   gold_schema: ${var.gold_schema}
+            - task_key: run_reconciliation
+              depends_on:
+                - task_key: build_dim_date
+              notebook_task:
+                notebook_path: ./Lab7/07_reconciliation.ipynb
+                base_parameters:
+                  catalog: ${var.catalog}
+                  bronze_schema: ${var.bronze_schema}
+                  silver_schema: ${var.silver_schema}
+                  gold_schema: ${var.gold_schema}
             - task_key: refresh_cost_dashboard
               depends_on:
+                - task_key: build_dc_map
                 - task_key: build_dim_date
               dashboard_task:
                 dashboard_id: ${resources.dashboards.datacenter_cost_dashboard.id}
@@ -396,6 +407,7 @@ targets:
             - task_key: refresh_dq_dashboard
               depends_on:
                 - task_key: build_dim_date
+                - task_key: run_reconciliation
               dashboard_task:
                 dashboard_id: ${resources.dashboards.dq_dashboard.id}
                 warehouse_id: ${var.warehouse_id}
