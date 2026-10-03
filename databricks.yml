@@ -325,7 +325,7 @@ targets:
           name: entsoe-pipeline-prod
           email_notifications:
             on_failure:
-              - gabrielajaniszews786@softserve.academy
+              - gabrielajaniszewska@translite.pl
           tasks:
             # --- Bronze: prices from the ENTSO-E API ---
             - task_key: fetch_prices
@@ -407,6 +407,7 @@ targets:
             - task_key: refresh_dq_dashboard
               depends_on:
                 - task_key: run_reconciliation
+              run_if: ALL_DONE
               dashboard_task:
                 dashboard_id: ${resources.dashboards.dq_dashboard.id}
                 warehouse_id: ${var.warehouse_id}
