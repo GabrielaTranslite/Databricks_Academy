@@ -9,28 +9,28 @@
         "  'valid' AS status,\r\n",
         "  count(*) AS n\r\n",
         "FROM\r\n",
-        "  IDENTIFIER(:catalog_name || '.' || :schema_name || '.valid_prices')\r\n",
+        "valid_prices')\r\n",
         "UNION ALL\r\n",
         "SELECT\r\n",
         "  'prices',\r\n",
         "  'quarantine',\r\n",
         "  count(*)\r\n",
         "FROM\r\n",
-        "  IDENTIFIER(:catalog_name || '.' || :schema_name || '.quarantine_prices')\r\n",
+        "quarantine_prices')\r\n",
         "UNION ALL\r\n",
         "SELECT\r\n",
         "  'sensor',\r\n",
         "  'valid',\r\n",
         "  count(*)\r\n",
         "FROM\r\n",
-        "  IDENTIFIER(:catalog_name || '.' || :schema_name || '.valid_sensor')\r\n",
+        "valid_sensor')\r\n",
         "UNION ALL\r\n",
         "SELECT\r\n",
         "  'sensor',\r\n",
         "  'quarantine',\r\n",
         "  count(*)\r\n",
         "FROM\r\n",
-        "  IDENTIFIER(:catalog_name || '.' || :schema_name || '.quarantine_sensor')"
+        "quarantine_sensor')"
       ],
       "parameters": [
         {
@@ -42,7 +42,6 @@
               "dataType": "STRING",
               "values": [
                 {
-                  "value": "workspace"
                 }
               ]
             }
@@ -57,15 +56,12 @@
               "dataType": "STRING",
               "values": [
                 {
-                  "value": "silver"
                 }
               ]
             }
           }
         }
       ],
-      "catalog": "workspace",
-      "schema": "silver"
     },
     {
       "name": "45815fe5",
@@ -74,12 +70,12 @@
         "SELECT dataset, round(100.0 * valid / (valid + quarantine), 2) AS pass_rate_pct\r\n",
         "FROM (\r\n",
         "  SELECT 'prices' AS dataset,\r\n",
-        "    (SELECT count(*) FROM IDENTIFIER(:catalog || '.' || :schema || '.valid_prices'))      AS valid,\r\n",
-        "    (SELECT count(*) FROM IDENTIFIER(:catalog || '.' || :schema || '.quarantine_prices')) AS quarantine\r\n",
+        "    (SELECT count(*) FROM valid_prices'))      AS valid,\r\n",
+        "    (SELECT count(*) FROM quarantine_prices') AS quarantine\r\n",
         "  UNION ALL\r\n",
         "  SELECT 'sensor',\r\n",
-        "    (SELECT count(*) FROM IDENTIFIER(:catalog || '.' || :schema || '.valid_sensor')),\r\n",
-        "    (SELECT count(*) FROM IDENTIFIER(:catalog || '.' || :schema || '.quarantine_sensor'))\r\n",
+        "    (SELECT count(*) FROM valid_sensor'),\r\n",
+        "    (SELECT count(*) FROM quarantine_sensor')\r\n",
         ")"
       ],
       "parameters": [
@@ -120,7 +116,7 @@
       "displayName": "latest_reconciliation",
       "queryLines": [
         "WITH r AS (\r\n",
-        "  SELECT * FROM IDENTIFIER(:catalog || '.' || :schema || '.reconciliation_results')\r\n",
+        "  SELECT * FROM reconciliation_results')\r\n",
         ")\r\n",
         "SELECT check_name, status, from_utc_timestamp(reconciliation_date, 'Europe/Warsaw') AS reconciliation_date\r\n",
         "FROM r\r\n",
@@ -172,7 +168,7 @@
         "  bronze_count,\r\n",
         "  valid_count,\r\n",
         "  quarantine_count\r\n",
-        "FROM IDENTIFIER(:catalog || '.' || :schema || '.reconciliation_results')"
+        "FROM reconciliation_results')"
       ],
       "parameters": [
         {

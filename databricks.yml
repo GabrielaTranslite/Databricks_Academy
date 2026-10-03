@@ -299,11 +299,13 @@ targets:
           file_path: ./Lab7/Data_Quality.lvdash.json
           warehouse_id: ${var.warehouse_id}
           dataset_catalog: ${var.catalog}
+          dataset_schema: ${var.silver_schema}
         datacenter_cost_dashboard:
           display_name: "Datacenter Energy Cost"
           file_path: "./Lab6/Datacenter Energy Cost Dashboard.lvdash.json"
           warehouse_id: ${var.warehouse_id}
           dataset_catalog: ${var.catalog}
+          dataset_schema: ${var.gold_schema} 
       jobs:
         tests_job:
           name: entsoe-unit-tests-prod
@@ -385,4 +387,16 @@ targets:
                   catalog: ${var.catalog}
                   bronze_schema: ${var.bronze_schema}
                   gold_schema: ${var.gold_schema}
+            - task_key: refresh_cost_dashboard
+              depends_on:
+                - task_key: build_dim_date
+              dashboard_task:
+                dashboard_id: ${resources.dashboards.datacenter_cost_dashboard.id}
+                warehouse_id: ${var.warehouse_id}
+            - task_key: refresh_dq_dashboard
+              depends_on:
+                - task_key: build_dim_date
+              dashboard_task:
+                dashboard_id: ${resources.dashboards.dq_dashboard.id}
+                warehouse_id: ${var.warehouse_id}
 
