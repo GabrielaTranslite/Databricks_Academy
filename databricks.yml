@@ -406,7 +406,6 @@ targets:
                 warehouse_id: ${var.warehouse_id}
             - task_key: refresh_dq_dashboard
               depends_on:
-                - task_key: build_dim_date
                 - task_key: run_reconciliation
               dashboard_task:
                 dashboard_id: ${resources.dashboards.dq_dashboard.id}
