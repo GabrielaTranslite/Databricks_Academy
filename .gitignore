@@ -6,3 +6,7 @@ __pycache__/
 **/.env
 .claude/
 .databricks/
+.ai-dev-kit/
+.cursor/
+.github/skills/
+terraform/
