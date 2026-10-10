@@ -272,7 +272,7 @@ targets:
   prod:
     mode: production
     workspace:
-      host: https://adb-7405615123305702.2.azuredatabricks.net
+      host: https://adb-7405618361895520.0.azuredatabricks.net/
       root_path: /Workspace/Users/gabrielajaniszews786@softserve.academy/.bundle/${bundle.name}/${bundle.target}
     permissions:
       - user_name: gabrielajaniszews786@softserve.academy
@@ -286,7 +286,7 @@ targets:
       bronze_schema: gabrielajaniszews786_bronze
       silver_schema: gabrielajaniszews786_silver
       gold_schema: gabrielajaniszews786_gold
-      warehouse_id: c0152a553a7a830f
+      warehouse_id: d8b8ff9942968cb8
     resources:
       pipelines:
         entsoe_silver_ldp:
