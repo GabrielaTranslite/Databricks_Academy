@@ -437,6 +437,7 @@
                 "period": {
                   "fieldName": "minutely(Untitled_dataset_3__reconciliation_date)",
                   "style": {
+                    "fontSize": 26,
                     "fontStyle": "normal",
                     "fontWeight": 600
                   }
