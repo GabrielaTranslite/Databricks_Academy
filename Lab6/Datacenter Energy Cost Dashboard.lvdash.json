@@ -3,14 +3,16 @@
     {
       "name": "1093eea9",
       "displayName": "consumption_hourly",
+      "catalog": "dbr_dev",
+      "schema": "gabrielajaniszews786_gold",
       "config": {
-        "source": "workspace.gold.consumption_hourly",
+        "source": "dbr_dev.gabrielajaniszews786_gold.consumption_hourly",
         "measures": [
           {
-            "name": "count",
-            "expr": "COUNT(*)",
             "comment": "Represents the total number of rows in the dataset. Use this measure to count all",
-            "displayName": "Count"
+            "displayName": "Count",
+            "expr": "COUNT(*)",
+            "name": "count"
           }
         ],
         "version": "1.1",
@@ -25,12 +27,12 @@
         "joins": [
           {
             "name": "dim_datacenter",
-            "source": "workspace.gold.dim_datacenter",
-            "on": "source.site_id = dim_datacenter.site_id"
+            "on": "source.site_id = dim_datacenter.site_id",
+            "source": "dbr_dev.gabrielajaniszews786_gold.dim_datacenter"
           },
           {
             "name": "dim_date",
-            "source": "workspace.gold.dim_date",
+            "source": "dbr_dev.gabrielajaniszews786_gold.dim_date",
             "cardinality": "many_to_one",
             "on": "source.date = dim_date.date",
             "rely": {
@@ -38,6 +40,29 @@
             }
           }
         ]
+      }
+    },
+    {
+      "name": "bacc18f4",
+      "displayName": "dc_map",
+      "catalog": "dbr_dev",
+      "schema": "gabrielajaniszews786_gold",
+      "config": {
+        "dimensions": [
+          {
+            "expr": "source.*"
+          }
+        ],
+        "measures": [
+          {
+            "comment": "Represents the total number of rows in the dataset. Use this measure to count all",
+            "displayName": "Count",
+            "expr": "COUNT(*)",
+            "name": "count"
+          }
+        ],
+        "source": "dbr_dev.gabrielajaniszews786_gold.dc_map",
+        "version": "1.1"
       }
     }
   ],
@@ -73,27 +98,10 @@
               }
             ],
             "spec": {
-              "version": 3,
-              "frame": {
-                "showTitle": true,
-                "title": "Average Hourly KWH Consumption per site ID"
+              "data": {
+                "queryName": "main_query"
               },
-              "widgetType": "line",
               "encodings": {
-                "x": {
-                  "fieldName": "hour",
-                  "displayName": "Hour",
-                  "scale": {
-                    "type": "quantitative"
-                  }
-                },
-                "y": {
-                  "fieldName": "avg(avg_consumption_kwh)",
-                  "displayName": "Average KWH Consumption",
-                  "scale": {
-                    "type": "quantitative"
-                  }
-                },
                 "color": {
                   "fieldName": "site_id",
                   "legend": {
@@ -102,15 +110,32 @@
                   "scale": {
                     "type": "categorical"
                   }
+                },
+                "x": {
+                  "displayName": "Hour",
+                  "fieldName": "hour",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "y": {
+                  "displayName": "Average KWH Consumption",
+                  "fieldName": "avg(avg_consumption_kwh)",
+                  "scale": {
+                    "type": "quantitative"
+                  }
                 }
               },
-              "data": {
-                "queryName": "main_query"
-              }
+              "frame": {
+                "showTitle": true,
+                "title": "Average Hourly KWH Consumption per site ID"
+              },
+              "version": 3,
+              "widgetType": "line"
             }
           },
           "position": {
-            "x": 0,
+            "x": 6,
             "y": 2,
             "width": 6,
             "height": 10
@@ -139,6 +164,13 @@
               }
             ],
             "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Total Cost per Bidding Zone",
+                  "fields": []
+                }
+              },
               "version": 3,
               "widgetType": "bar",
               "encodings": {
@@ -213,57 +245,57 @@
               }
             ],
             "spec": {
-              "version": 3,
-              "frame": {
-                "showTitle": true,
-                "title": "Average Hourly Power Usage Effectiveness (PUE) per site ID"
+              "data": {
+                "queryName": "main_query"
               },
-              "widgetType": "line",
               "encodings": {
+                "color": {
+                  "displayName": "Site ID",
+                  "fieldName": "site_id",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
                 "x": {
-                  "fieldName": "hour",
                   "axis": {
                     "title": "Hour"
                   },
+                  "fieldName": "hour",
                   "format": {
-                    "type": "number-plain",
                     "abbreviation": "compact",
                     "decimalPlaces": {
-                      "type": "max",
-                      "places": 2
-                    }
+                      "places": 2,
+                      "type": "max"
+                    },
+                    "type": "number-plain"
                   },
                   "scale": {
                     "type": "quantitative"
                   }
                 },
                 "y": {
-                  "fieldName": "avg(avg_pue)",
                   "axis": {
                     "title": "Average PUE"
                   },
+                  "fieldName": "avg(avg_pue)",
                   "scale": {
                     "type": "quantitative"
                   }
-                },
-                "color": {
-                  "fieldName": "site_id",
-                  "displayName": "Site ID",
-                  "scale": {
-                    "type": "categorical"
-                  }
                 }
               },
-              "data": {
-                "queryName": "main_query"
-              }
+              "frame": {
+                "showTitle": true,
+                "title": "Average Hourly Power Usage Effectiveness (PUE) per site ID"
+              },
+              "version": 3,
+              "widgetType": "line"
             }
           },
           "position": {
             "x": 6,
-            "y": 2,
+            "y": 12,
             "width": 6,
-            "height": 10
+            "height": 9
           }
         },
         {
@@ -293,42 +325,42 @@
               }
             ],
             "spec": {
-              "version": 3,
-              "widgetType": "line",
+              "data": {
+                "queryName": "main_query"
+              },
               "encodings": {
+                "color": {
+                  "displayName": "Site ID",
+                  "fieldName": "site_id",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
                 "x": {
-                  "fieldName": "date",
                   "displayName": "Date",
+                  "fieldName": "date",
                   "scale": {
                     "type": "temporal"
                   }
                 },
                 "y": {
-                  "fieldName": "avg(cost_per_hour)",
                   "axis": {
                     "title": "Average Cost"
                   },
                   "displayName": "Average Cost",
+                  "fieldName": "avg(cost_per_hour)",
                   "scale": {
                     "type": "quantitative"
                   }
-                },
-                "color": {
-                  "fieldName": "site_id",
-                  "displayName": "Site ID",
-                  "scale": {
-                    "type": "categorical"
-                  }
                 }
               },
-              "data": {
-                "queryName": "main_query"
-              }
+              "version": 3,
+              "widgetType": "line"
             }
           },
           "position": {
             "x": 6,
-            "y": 12,
+            "y": 21,
             "width": 6,
             "height": 9
           }
@@ -352,32 +384,32 @@
               }
             ],
             "spec": {
-              "frame": {
-                "showTitle": true,
-                "title": {
-                  "value": "Total Cost",
-                  "fields": []
-                }
+              "data": {
+                "queryName": "main_query"
               },
-              "version": 2,
-              "sparkChart": {
-                "hide": true
-              },
-              "widgetType": "counter",
               "encodings": {
                 "value": {
                   "fieldName": "sum(cost_per_hour)"
                 }
               },
-              "data": {
-                "queryName": "main_query"
-              }
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "fields": [],
+                  "value": "Total Cost"
+                }
+              },
+              "sparkChart": {
+                "hide": true
+              },
+              "version": 2,
+              "widgetType": "counter"
             }
           },
           "position": {
-            "x": 1,
+            "x": 2,
             "y": 0,
-            "width": 1,
+            "width": 2,
             "height": 2
           }
         },
@@ -400,29 +432,29 @@
               }
             ],
             "spec": {
-              "version": 2,
-              "sparkChart": {
-                "hide": true
+              "data": {
+                "queryName": "main_query"
               },
-              "frame": {
-                "showTitle": true,
-                "title": "Average PUE"
-              },
-              "widgetType": "counter",
               "encodings": {
                 "value": {
                   "fieldName": "avg(avg_pue)"
                 }
               },
-              "data": {
-                "queryName": "main_query"
-              }
+              "frame": {
+                "showTitle": true,
+                "title": "Average PUE"
+              },
+              "sparkChart": {
+                "hide": true
+              },
+              "version": 2,
+              "widgetType": "counter"
             }
           },
           "position": {
-            "x": 2,
+            "x": 4,
             "y": 0,
-            "width": 1,
+            "width": 2,
             "height": 2
           }
         },
@@ -445,16 +477,147 @@
               }
             ],
             "spec": {
-              "version": 2,
-              "frame": {
-                "showTitle": true,
-                "title": "Date"
+              "data": {
+                "queryName": "main_query"
               },
-              "widgetType": "counter",
               "encodings": {
                 "value": {
                   "fieldName": "max(date)"
                 }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Date"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 2,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "3292a1d9",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "bacc18f4",
+                  "fields": [
+                    {
+                      "name": "is_energy_consumed",
+                      "expression": "`is_energy_consumed`"
+                    },
+                    {
+                      "name": "latitude",
+                      "expression": "`latitude`"
+                    },
+                    {
+                      "name": "longitude",
+                      "expression": "`longitude`"
+                    },
+                    {
+                      "name": "commissioned_year",
+                      "expression": "`commissioned_year`"
+                    },
+                    {
+                      "name": "power_density_kw_m2",
+                      "expression": "`power_density_kw_m2`"
+                    },
+                    {
+                      "name": "it_power_mw",
+                      "expression": "`it_power_mw`"
+                    },
+                    {
+                      "name": "tech_area_m2",
+                      "expression": "`tech_area_m2`"
+                    },
+                    {
+                      "name": "tier",
+                      "expression": "`tier`"
+                    },
+                    {
+                      "name": "cooling_type",
+                      "expression": "`cooling_type`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Data Center Map with Energy Consumption Indicator",
+                  "fields": []
+                }
+              },
+              "version": 2,
+              "widgetType": "symbol-map",
+              "encodings": {
+                "coordinates": {
+                  "latitude": {
+                    "fieldName": "latitude"
+                  },
+                  "longitude": {
+                    "fieldName": "longitude"
+                  }
+                },
+                "color": {
+                  "fieldName": "is_energy_consumed",
+                  "displayName": "Energy Consumed",
+                  "scale": {
+                    "mappings": [
+                      {
+                        "color": {
+                          "position": 3,
+                          "themeColorType": "visualizationColors"
+                        },
+                        "value": true
+                      },
+                      {
+                        "value": false,
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 4
+                        }
+                      }
+                    ],
+                    "type": "categorical"
+                  }
+                },
+                "extra": [
+                  {
+                    "fieldName": "commissioned_year",
+                    "displayName": "Year of Commissioning"
+                  },
+                  {
+                    "fieldName": "power_density_kw_m2",
+                    "displayName": "Power Density kW/m2"
+                  },
+                  {
+                    "fieldName": "it_power_mw",
+                    "displayName": "IT Power in MW"
+                  },
+                  {
+                    "fieldName": "tech_area_m2",
+                    "displayName": "Area in Square Meters"
+                  },
+                  {
+                    "fieldName": "tier",
+                    "displayName": "Tier"
+                  },
+                  {
+                    "fieldName": "cooling_type",
+                    "displayName": "Cooling Type"
+                  }
+                ]
               },
               "data": {
                 "queryName": "main_query"
@@ -463,9 +626,9 @@
           },
           "position": {
             "x": 0,
-            "y": 0,
-            "width": 1,
-            "height": 2
+            "y": 2,
+            "width": 6,
+            "height": 10
           }
         }
       ],
@@ -499,12 +662,6 @@
               }
             ],
             "spec": {
-              "version": 2,
-              "frame": {
-                "showTitle": true,
-                "title": "Bidding zone"
-              },
-              "widgetType": "filter-single-select",
               "encodings": {
                 "fields": [
                   {
@@ -512,7 +669,13 @@
                     "queryName": "dashboards/01f19e1f0fe7164a93b360933c291584/datasets/01f19e1f559616c1a84e87516130816f_bidding_zone"
                   }
                 ]
-              }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Bidding zone"
+              },
+              "version": 2,
+              "widgetType": "filter-single-select"
             }
           },
           "position": {
@@ -545,18 +708,6 @@
               }
             ],
             "spec": {
-              "version": 2,
-              "scale": {
-                "type": "categorical",
-                "sort": {
-                  "by": "natural-order-reversed"
-                }
-              },
-              "frame": {
-                "showTitle": true,
-                "title": "Date"
-              },
-              "widgetType": "filter-single-select",
               "encodings": {
                 "fields": [
                   {
@@ -564,7 +715,19 @@
                     "queryName": "dashboards/01f19e1f0fe7164a93b360933c291584/datasets/01f19e1f559616c1a84e87516130816f_date"
                   }
                 ]
-              }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Date"
+              },
+              "scale": {
+                "sort": {
+                  "by": "natural-order-reversed"
+                },
+                "type": "categorical"
+              },
+              "version": 2,
+              "widgetType": "filter-single-select"
             }
           },
           "position": {
@@ -597,12 +760,6 @@
               }
             ],
             "spec": {
-              "version": 2,
-              "frame": {
-                "showTitle": true,
-                "title": "Day of the Week"
-              },
-              "widgetType": "filter-single-select",
               "encodings": {
                 "fields": [
                   {
@@ -610,12 +767,67 @@
                     "queryName": "dashboards/01f19e1f0fe7164a93b360933c291584/datasets/01f19e1f559616c1a84e87516130816f_day_of_week_name"
                   }
                 ]
-              }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Day of the Week"
+              },
+              "version": 2,
+              "widgetType": "filter-single-select"
             }
           },
           "position": {
             "x": 0,
             "y": 4,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "month",
+            "queries": [
+              {
+                "name": "dashboards/01f1b847a31b10e0bcd969c3c63829c6/datasets/01f1bf542eda165983a5adeffb3ea897_month",
+                "query": {
+                  "datasetName": "1093eea9",
+                  "fields": [
+                    {
+                      "name": "month",
+                      "expression": "`month`"
+                    },
+                    {
+                      "name": "month_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Month",
+                  "fields": []
+                }
+              },
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "month",
+                    "queryName": "dashboards/01f1b847a31b10e0bcd969c3c63829c6/datasets/01f1bf542eda165983a5adeffb3ea897_month"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 6,
             "width": 1,
             "height": 2
           }
@@ -627,7 +839,13 @@
   ],
   "uiSettings": {
     "theme": {
-      "widgetHeaderAlignment": "ALIGNMENT_UNSPECIFIED"
+      "widgetHeaderAlignment": "ALIGNMENT_UNSPECIFIED",
+      "visualizationColorMappings": [
+        {
+          "value": "true",
+          "color": "#00A972"
+        }
+      ]
     },
     "applyModeEnabled": false
   }

@@ -272,7 +272,7 @@ targets:
   prod:
     mode: production
     workspace:
-      host: https://adb-7405615123305702.2.azuredatabricks.net
+      host: https://adb-7405618361895520.0.azuredatabricks.net/
       root_path: /Workspace/Users/gabrielajaniszews786@softserve.academy/.bundle/${bundle.name}/${bundle.target}
     permissions:
       - user_name: gabrielajaniszews786@softserve.academy
@@ -286,7 +286,7 @@ targets:
       bronze_schema: gabrielajaniszews786_bronze
       silver_schema: gabrielajaniszews786_silver
       gold_schema: gabrielajaniszews786_gold
-      warehouse_id: c0152a553a7a830f
+      warehouse_id: d8b8ff9942968cb8
     resources:
       pipelines:
         entsoe_silver_ldp:
@@ -299,11 +299,13 @@ targets:
           file_path: ./Lab7/Data_Quality.lvdash.json
           warehouse_id: ${var.warehouse_id}
           dataset_catalog: ${var.catalog}
+          dataset_schema: ${var.silver_schema}
         datacenter_cost_dashboard:
           display_name: "Datacenter Energy Cost"
           file_path: "./Lab6/Datacenter Energy Cost Dashboard.lvdash.json"
           warehouse_id: ${var.warehouse_id}
           dataset_catalog: ${var.catalog}
+          dataset_schema: ${var.gold_schema} 
       jobs:
         tests_job:
           name: entsoe-unit-tests-prod
@@ -323,7 +325,7 @@ targets:
           name: entsoe-pipeline-prod
           email_notifications:
             on_failure:
-              - gabrielajaniszews786@softserve.academy
+              - gabrielajaniszewska@translite.pl
           tasks:
             # --- Bronze: prices from the ENTSO-E API ---
             - task_key: fetch_prices
@@ -385,4 +387,28 @@ targets:
                   catalog: ${var.catalog}
                   bronze_schema: ${var.bronze_schema}
                   gold_schema: ${var.gold_schema}
+            - task_key: run_reconciliation
+              depends_on:
+                - task_key: build_dim_date
+              notebook_task:
+                notebook_path: ./Lab7/07_reconciliation.ipynb
+                base_parameters:
+                  catalog: ${var.catalog}
+                  bronze_schema: ${var.bronze_schema}
+                  silver_schema: ${var.silver_schema}
+                  gold_schema: ${var.gold_schema}
+            - task_key: refresh_cost_dashboard
+              depends_on:
+                - task_key: build_dc_map
+                - task_key: build_dim_date
+              dashboard_task:
+                dashboard_id: ${resources.dashboards.datacenter_cost_dashboard.id}
+                warehouse_id: ${var.warehouse_id}
+            - task_key: refresh_dq_dashboard
+              depends_on:
+                - task_key: run_reconciliation
+              run_if: ALL_DONE
+              dashboard_task:
+                dashboard_id: ${resources.dashboards.dq_dashboard.id}
+                warehouse_id: ${var.warehouse_id}
 
