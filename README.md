@@ -22,9 +22,6 @@ Built as the individual Final Project for the SoftServe Databricks Academy.
 - **Governed by Unity Catalog** – catalogs / schemas / volumes, row-level security and column
   masks (RLS/CLS), with secrets in Azure Key Vault.
 
-> The diagram is a working draft. Replace `docs/architecture.png` with the final Excalidraw export
-> when it is ready.
-
 ---
 
 ## Two environments, one bundle
@@ -62,7 +59,7 @@ The repo follows the Academy lab arc; each folder maps onto a stage of the platf
 | `Lab8` | CI/CD DEV -> PROD (this bundle, the GitHub Actions workflows, `GIT_WORKFLOW.md`) |
 | `Lab9` | REST API / SDK automation – `orchestrator.py` triggers jobs programmatically |
 | `Lab10` | Lakehouse Federation + CDC / SCD2 over Neon Postgres |
-| `Lab11` | Zerobus – direct ingestion path for sensor events |
+| `Lab11` | Zerobus – explored as an alternative sensor ingestion path (not wired into the production pipeline) |
 | `GenAI` | AI capstone – RAG + LangGraph agent over the gold layer, AI-assisted development |
 | `terraform` | Data-only inventory of the Azure infra (separate layer; not wired into CD) |
 | `.github/workflows` | `pr_pipeline.yml`, `cd.yml`, `automation.yml` |
@@ -170,10 +167,11 @@ there is no access-control code in the agent itself.
 
 ## Advanced capabilities
 
-Beyond the baseline, the platform uses four: **REST API automation** (ENTSO-E ingest + the SDK
-orchestrator), **Lakehouse Federation** (datacenter master read live from Neon Postgres),
-**CDC / SCD2** (history on the federated datacenter dimension), and **Zerobus** (direct sensor
-ingestion).
+Beyond the baseline, the platform uses three: **REST API automation** (ENTSO-E ingest + the SDK
+orchestrator), **Lakehouse Federation** (datacenter master read live from Neon Postgres), and
+**CDC / SCD2** (history on the federated datacenter dimension). Zerobus was evaluated as an
+alternative sensor ingestion path but not adopted – the production pipeline stays on the classic
+Event Hub + Structured Streaming route.
 
 ## AI application
 
