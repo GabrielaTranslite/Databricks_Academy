@@ -14,7 +14,7 @@ Built as the individual Final Project for the SoftServe Databricks Academy.
 ![Architecture](docs/architecture.png)
 
 - **Sources** – ENTSO-E REST API (prices, batch), datacenter sensors via Azure Event Hub
-  (streaming), and datacenter master data in Neon Postgres (read live via Lakehouse Federation).
+  (streaming), and datacenter master data in Neon Postgres (read live via Lakehouse Federation, snapshotted into bronze).
 - **Medallion** – one declarative Lakeflow pipeline builds silver + gold with DQX quality checks;
   Lakeflow Jobs orchestrate ingestion, the pipeline, dimensions and dashboard refresh.
 - **Consumers** – a Datacenter Energy Cost dashboard and a Data Quality scorecard, plus a RAG +
@@ -168,8 +168,11 @@ there is no access-control code in the agent itself.
 ## Advanced capabilities
 
 Beyond the baseline, the platform uses three: **REST API automation** (ENTSO-E ingest + the SDK
-orchestrator), **Lakehouse Federation** (datacenter master read live from Neon Postgres), and
-**CDC / SCD2** (history on the federated datacenter dimension). Zerobus was evaluated as an
+orchestrator), **Lakehouse Federation** (datacenter master read live from Neon Postgres and snapshotted into
+bronze), and
+**CDC / SCD2** (auto-CDC on the sensor stream in the Lakeflow pipeline, plus a history-tracked
+`dim_datacenter` in silver). A separate SCD2-over-Neon build in `Lab10` demonstrates the same
+capability on the federated dimension but is not wired into the pipeline. Zerobus was evaluated as an
 alternative sensor ingestion path but not adopted – the production pipeline stays on the classic
 Event Hub + Structured Streaming route.
 
