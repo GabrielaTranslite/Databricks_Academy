@@ -65,7 +65,7 @@ DOCS_TABLE   = f"{CATALOG}.{GOLD_SCHEMA}.project_docs"
 VS_INDEX     = f"{CATALOG}.{GOLD_SCHEMA}.project_docs_index"
 UC_MODEL     = f"{CATALOG}.{GOLD_SCHEMA}.entsoe_support_agent"
 
-VS_ENDPOINT  = "entsoe_vs" if TARGET_ENV == "dev" else "prod-retail-rag-endpoint"
+VS_ENDPOINT  = "entsoe_vs" if TARGET_ENV == "dev" else "powerbi_docs_vs_endpoint"
 
 LLM_ENDPOINT       = "databricks-meta-llama-3-3-70b-instruct"
 EMBEDDING_ENDPOINT = "databricks-gte-large-en"
